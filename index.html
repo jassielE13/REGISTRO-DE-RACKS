@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Acceso — Patineros/Controlistas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Ingreso</h1>
+      <p class="muted">Introduce tu <strong>número de empleado</strong> para continuar.</p>
+
+      <form id="loginForm" autocomplete="off" novalidate>
+        <label class="field">
+          <span>Número de empleado</span>
+          <input id="employeeId" type="text" inputmode="numeric" placeholder="Ej. 1522761" required />
+        </label>
+
+        <button class="primary" type="submit">Entrar</button>
+        <p id="errorMsg" class="error" aria-live="polite" hidden></p>
+      </form>
+
+      <details class="help">
+        <summary>¿Problemas para ingresar?</summary>
+        <ul>
+          <li>Verifica que el número esté completo y sin espacios.</li>
+          <li>Si no estás dado de alta, pide a Sistemas que te registren.</li>
+        </ul>
+      </details>
+    </section>
+
+    <footer class="foot">
+      <small>© 2025 • Área Operaciones</small>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
+

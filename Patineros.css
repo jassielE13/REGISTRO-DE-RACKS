@@ -1,0 +1,221 @@
+/* Variables y theming */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --bg-elev: #f7fafc;
+  --text: #0f172a;
+  --muted: #475569;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --brand: #1d4ed8;
+  --brand-2: #2563eb;
+  --accent: #0ea5e9;
+  --accent-2: #38bdf8;
+  --ok: #16a34a;
+  --busy: #f59e0b;
+  --danger: #dc2626;
+  --shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1220;
+    --bg-elev: #0f172a;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --card: #0c1425;
+    --border: #1f2937;
+    --brand: #93c5fd;
+    --brand-2: #60a5fa;
+    --accent: #0ea5e9;
+    --accent-2: #38bdf8;
+    --ok: #34d399;
+    --busy: #fbbf24;
+    --danger: #ef4444;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+
+/* Reset suave */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Topbar + Navbar */
+.topbar {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+  position: sticky; top: 0; z-index: 10;
+  box-shadow: var(--shadow);
+}
+.brand { font-weight: 700; letter-spacing: .3px; color: var(--brand); }
+
+/* Centrar los 6 apartados */
+.navbar {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: .5rem 1rem; flex-wrap: wrap;
+}
+.navbar a {
+  color: var(--muted); text-decoration: none; padding: .5rem .9rem;
+  border-radius: .6rem; font-weight: 600; transition: background .2s, color .2s;
+}
+.navbar a:hover { background: var(--bg-elev); color: var(--brand-2); }
+
+/* Botón salir a la derecha */
+.logout {
+  margin-left: auto;
+  background: var(--danger); color: #fff; text-decoration: none;
+  padding: .55rem .9rem; border-radius: .6rem; font-weight: 700;
+}
+.logout:hover { filter: brightness(1.05); }
+
+/* Resaltar link activo automáticamente (navegadores modernos) */
+body:has(#registro:target) .navbar a[href="#registro"],
+body:has(#retirar:target) .navbar a[href="#retirar"],
+body:has(#salidas:target) .navbar a[href="#salidas"],
+body:has(#posiciones:target) .navbar a[href="#posiciones"],
+body:has(#racks:target) .navbar a[href="#racks"],
+body:has(#comentarios:target) .navbar a[href="#comentarios"] {
+  background: var(--brand-2); color: #fff;
+}
+
+/* Layout principal */
+.container { padding: 1.25rem; max-width: 1200px; margin: 0 auto; }
+
+/* Paneles: por defecto ocultos; se muestra solo el :target */
+.panel { 
+  display: none;
+  background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+  padding: 1.25rem; margin-bottom: 1.25rem;
+  box-shadow: var(--shadow);
+}
+.panel:target { display: block; }
+
+/* Encabezado de panel */
+.panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.panel-header h2 { margin: 0; color: var(--brand); }
+
+/* Formularios */
+.form { display: grid; gap: 1rem; }
+.row { display: grid; gap: 1rem; }
+.row.two { grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 1rem; }
+
+.field label { display: block; margin-bottom: .5rem; font-weight: 600; }
+.field input, .field textarea, .field select {
+  width: 100%;
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--border); border-radius: .8rem;
+  padding: .8rem 1rem; outline: none; transition: border .2s ease;
+}
+.field textarea { resize: vertical; }
+.field input:focus, .field textarea:focus { border-color: var(--accent); }
+.with-actions { display: flex; gap: .5rem; }
+.with-actions input { flex: 1; }
+
+/* Readonly block */
+.readonly-block { margin-top: .75rem; }
+.readonly-block input[readonly] { opacity: .85; cursor: not-allowed; }
+.readonly-block small { display: block; opacity: .75; margin-top: .35rem; }
+
+/* Botones */
+button { appearance: none; border: none; cursor: pointer; border-radius: .8rem; font-weight: 700; }
+button.primary { background: var(--accent); color: #0c1425; padding: .9rem 1.1rem; }
+button.primary:hover { background: var(--accent-2); }
+button.secondary {
+  background: transparent; color: var(--text); padding: .9rem 1.1rem;
+  border: 1px solid var(--border); margin-left: .5rem;
+}
+button.secondary:hover { background: var(--bg-elev); }
+button.ghost { background: transparent; color: var(--muted); padding: .7rem .9rem; border: 1px dashed var(--border); }
+button.ghost:hover { background: var(--bg-elev); }
+button.accent { background: var(--ok); color: #062312; padding: .6rem .9rem; font-weight: 800; }
+button.accent:hover { filter: brightness(1.05); }
+
+/* Botones de línea (radios estilizados) */
+.line-buttons {
+  display: grid; grid-template-columns: repeat(4, minmax(80px, 1fr)); gap: .5rem;
+}
+.line-buttons input[type="radio"] { display: none; }
+.line-buttons label {
+  display: grid; place-items: center; padding: .7rem;
+  border-radius: .8rem; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text);
+  cursor: pointer; transition: border .15s ease, background .15s ease;
+  user-select: none;
+}
+.line-buttons input[type="radio"]:checked + label {
+  border-color: var(--brand-2); background: color-mix(in oklab, var(--brand-2) 15%, var(--bg));
+}
+
+/* Tabs sin JS (Retirar/Salidas) */
+.tabs { display: grid; gap: .8rem; }
+.tabs > input[type="radio"] { display: none; }
+.tabs > label {
+  display: inline-block; margin-right: .5rem; padding: .55rem .9rem;
+  border-radius: 999px; border: 1px solid var(--border);
+  background: var(--bg-elev); color: var(--text); cursor: pointer;
+}
+.tabs > input#sal1:checked ~ label[for="sal1"],
+.tabs > input#sal2:checked ~ label[for="sal2"],
+.tabs > input#sal3:checked ~ label[for="sal3"],
+.tabs > input#salout1:checked ~ label[for="salout1"],
+.tabs > input#salout2:checked ~ label[for="salout2"],
+.tabs > input#salout3:checked ~ label[for="salout3"] {
+  border-color: var(--brand-2); color: var(--brand-2);
+}
+.tabs .tab-content { background: var(--bg-elev); border: 1px solid var(--border); border-radius: .9rem; padding: 1rem; }
+.tabs .tab-content .tab-pane { display: none; }
+.tabs > input#sal1:checked ~ .tab-content > .tab-pane:nth-of-type(1),
+.tabs > input#sal2:checked ~ .tab-content > .tab-pane:nth-of-type(2),
+.tabs > input#sal3:checked ~ .tab-content > .tab-pane:nth-of-type(3),
+.tabs > input#salout1:checked ~ .tab-content > .tab-pane:nth-of-type(1),
+.tabs > input#salout2:checked ~ .tab-content > .tab-pane:nth-of-type(2),
+.tabs > input#salout3:checked ~ .tab-content > .tab-pane:nth-of-type(3) { display: block; }
+
+/* Tabla */
+.table {
+  width: 100%; border-collapse: collapse; font-size: .95rem;
+  border: 1px solid var(--border); border-radius: .6rem; overflow: hidden;
+}
+.table thead th {
+  background: var(--bg-elev); color: var(--brand-2); text-align: left; padding: .75rem 1rem; border-bottom: 1px solid var(--border);
+}
+.table tbody td { padding: .7rem 1rem; border-bottom: 1px solid var(--border); }
+.table tbody tr:hover { background: color-mix(in oklab, var(--bg-elev) 75%, var(--bg)); }
+
+/* Estados */
+.ok { color: var(--ok); font-weight: 700; }
+.busy { color: var(--busy); font-weight: 700; }
+
+/* Scroll contenedor */
+.scroll {
+  max-height: 50vh; overflow: auto; border: 1px solid var(--border); border-radius: .8rem; padding: .5rem;
+}
+
+/* Modal */
+.modal::backdrop { background: rgba(0,0,0,.35); }
+.modal .modal-content {
+  background: var(--card); color: var(--text); border: 1px solid var(--border);
+  padding: 1.25rem; border-radius: .9rem; min-width: min(92vw, 640px);
+  box-shadow: var(--shadow);
+}
+.resume {
+  padding: .75rem 1rem; background: var(--bg-elev); border: 1px solid var(--border); border-radius: .6rem;
+}
+
+/* Footer */
+.foot { padding: 2rem 1.5rem; text-align: center; opacity: .7; }
+
+/* Responsivo */
+@media (max-width: 900px) {
+  .row.two { grid-template-columns: 1fr; }
+  .modal .modal-content { min-width: min(96vw, 640px); }
+}

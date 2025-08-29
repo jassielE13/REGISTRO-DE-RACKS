@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="utf-8" />
+        <title>Controlistas — Gestión</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="Controlistas.css" />
+        <script>
+    if (!location.hash) {
+      location.replace(location.pathname + '#pendientes');
+    }
+  </script>
+    </head>
+    <body>
+        <header class="topbar">
+            <div class="brand">📋 Controlistas</div>
+            <nav class="navbar">
+                <a href="#pendientes">Pendientes</a>
+                <a href="#retirar">Retirar</a>
+                <a href="#salidas">Salidas</a>
+                <a href="#inventario">Inventario</a>
+                <a href="#comentarios">Comentarios</a>
+            </nav>
+            <a href="../Login/index.html" class="logout">Salir</a>
+        </header>
+
+        <main class="container">
+            <!-- 1) PENDIENTES DE PATINEROS -->
+            <section id="pendientes" class="panel">
+                <header class="panel-header">
+                    <h2>Pendientes recibidos</h2>
+                </header>
+                <div class="hint">Registros enviados desde <em>Registro de
+                        Racks</em> (Patineros). Selecciona a qué <strong>línea
+                        de salida</strong> enviarlos para
+                    <strong>Retirar</strong>.</div>
+                <div class="scroll">
+                    <table class="table" id="tablaPendientes">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th><th>Línea</th><th>Operador</th>
+                                <th>Cód.
+                                    Seco</th><th>Cant.</th><th>Rack</th><th>Posición</th>
+                                <th>Registrado por</th><th>Acciones</th>
+                            </tr>
+                        </thead>
+
+                        <tbody><!-- dinámico --></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 2) LISTAS PARA RETIRAR (SALIDAS 1–3) -->
+            <section id="retirar" class="panel">
+                <header class="panel-header">
+                    <h2>Listas activas de Retirar</h2>
+                </header>
+                <div class="tabs">
+                    <input type="radio" id="lret1" name="ret" checked />
+                    <label for="lret1">Salida 1</label>
+
+                    <input type="radio" id="lret2" name="ret" />
+                    <label for="lret2">Salida 2</label>
+
+                    <input type="radio" id="lret3" name="ret" />
+                    <label for="lret3">Salida 3</label>
+
+                    <div class="tab-content">
+                        <div class="tab-pane">
+                            <table class="table" id="tablaRet1">
+                                <thead><tr><th>Posición</th><th>Rack</th></tr></thead>
+                                <tbody><!-- dinámico --></tbody>
+                            </table>
+                        </div>
+                        <div class="tab-pane">
+                            <table class="table" id="tablaRet2">
+                                <thead><tr><th>Posición</th><th>Rack</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="tab-pane">
+                            <table class="table" id="tablaRet3">
+                                <thead><tr><th>Posición</th><th>Rack</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="hint">Estas listas son las que ven los Patineros en
+                    su apartado <strong>Retirar</strong>.</div>
+            </section>
+
+            <!-- 3) SALIDAS (SOLO LECTURA) -->
+            <section id="salidas" class="panel">
+                <header class="panel-header">
+                    <h2>Salidas</h2>
+                </header>
+                <div class="tabs">
+                    <input type="radio" id="s1" name="s" checked />
+                    <label for="s1">Salida 1</label>
+                    <input type="radio" id="s2" name="s" />
+                    <label for="s2">Salida 2</label>
+                    <input type="radio" id="s3" name="s" />
+                    <label for="s3">Salida 3</label>
+
+                    <div class="tab-content">
+                        <div class="tab-pane">
+                            <table class="table" id="tablaSal1">
+                                <thead><tr><th>Posición</th><th>Rack</th><th>Entrada</th><th>Salida</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="tab-pane">
+                            <table class="table" id="tablaSal2">
+                                <thead><tr><th>Posición</th><th>Rack</th><th>Entrada</th><th>Salida</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="tab-pane">
+                            <table class="table" id="tablaSal3">
+                                <thead><tr><th>Posición</th><th>Rack</th><th>Entrada</th><th>Salida</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4) INVENTARIO (EN USO / LIBRE) -->
+            <section id="inventario" class="panel">
+                <header class="panel-header">
+                    <h2>Inventario</h2>
+                </header>
+                <div class="grid2">
+                    <div>
+                        <h3>Posiciones</h3>
+                        <div class="scroll">
+                            <table class="table" id="tablaPos">
+                                <thead><tr><th>Posición</th><th>Estado</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Racks</h3>
+                        <div class="scroll">
+                            <table class="table" id="tablaRack">
+                                <thead><tr><th>Rack</th><th>Estado</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="hint">Se refleja lo que controlan los Patineros (en
+                    uso/libres).</div>
+            </section>
+
+            <!-- 5) COMENTARIOS -->
+            <section id="comentarios" class="panel">
+                <header class="panel-header">
+                    <h2>Comentarios</h2>
+                </header>
+                <form id="formComentario" class="form">
+                    <div class="row">
+                        <div class="field">
+                            <label for="comentario">Escribe tu
+                                comentario</label>
+                            <textarea id="comentario" rows="5"
+                                placeholder="Observaciones, incidencias, etc."></textarea>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="primary">Enviar</button>
+                        <button type="reset" class="secondary">Limpiar</button>
+                    </div>
+                </form>
+            </section>
+        </main>
+
+        <footer class="foot">
+            <small>© 2025 • Área Controlistas</small>
+        </footer>
+
+        <script src="Controlistas.js"></script>
+    </body>
+</html>

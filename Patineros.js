@@ -1,0 +1,519 @@
+// ====== Helpers de almacenamiento ======
+const LS_KEYS = {
+  // Guardado del último formulario por línea
+  FORM_LAST_BY_LINE: "patineros_form_last_by_line",
+  CONTROLISTAS: "controlistas_pendientes",
+  EN_USO: "en_uso",            // {posiciones:{}, racks:{}}
+  RETIRAR: "retirar_listas",   // {1:[{...}],2:[...],3:[...]}
+  SALIDAS: "salidas_listas"    // {1:[{...}],2:[...],3:[...]}
+};
+
+function loadJSON(key, fallback) { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
+function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+
+// ====== Usuario actual (del Login) ======
+const CURRENT_USER = loadJSON("CURRENT_USER", null);
+
+// ====== Estado ======
+const enUso = loadJSON(LS_KEYS.EN_USO, { posiciones:{}, racks:{} });
+const retirarListas = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[]});
+const salidasListas = loadJSON(LS_KEYS.SALIDAS, {1:[],2:[],3:[]});
+
+// ====== DOM ======
+const form = document.getElementById("formRegistro");
+const inputOperador = document.getElementById("operador");
+const inputCodigoSeco = document.getElementById("codigoSeco");
+const inputFirmando = document.getElementById("firmandoAcum");
+const inputCantidad = document.getElementById("cantidad");
+const inputNumRack = document.getElementById("numRack");
+const inputPosRack = document.getElementById("posRack");
+
+const tablaRetirar1 = document.querySelector("#tablaRetirar1 tbody");
+const tablaRetirar2 = document.querySelector("#tablaRetirar2 tbody");
+const tablaRetirar3 = document.querySelector("#tablaRetirar3 tbody");
+
+const tablaSalidas1 = document.querySelector("#tablaSalidas1 tbody");
+const tablaSalidas2 = document.querySelector("#tablaSalidas2 tbody");
+const tablaSalidas3 = document.querySelector("#tablaSalidas3 tbody");
+
+const tablaPosiciones = document.querySelector("#tablaPosiciones tbody");
+const tablaRacks = document.querySelector("#tablaRacks tbody");
+
+const modalEntrada = document.getElementById("modalEntrada");
+const modalSalida = document.getElementById("modalSalida");
+const modalInfo = document.getElementById("modalInfo");
+const infoDetalle = document.getElementById("infoDetalle");
+
+const entradaResumen = document.getElementById("entradaResumen");
+const salidaResumen = document.getElementById("salidaResumen");
+const formEntrada = document.getElementById("formEntrada");
+const formSalida = document.getElementById("formSalida");
+const inputPatineroEntrada = document.getElementById("patineroEntrada");
+const inputValidacionPatinero = document.getElementById("validacionPatinero");
+
+// Elementos para confirmación de línea (delegación) y QR del rack
+const confirmLineaContainer = document.getElementById("confirmLineaBtns");
+const inputConfirmLineaValue = document.getElementById("confirmLineaValue");
+const inputConfirmRack = document.getElementById("confirmRack");
+const btnScanRack = document.getElementById("btnScanRack");
+
+// Estado interno para entrada
+let currentSalida = null;
+let entradaLineaConfirmada = false;
+
+// ====== Utils ======
+function getLineaSeleccionada() { const r = document.querySelector('input[name="linea"]:checked'); return r ? parseInt(r.value,10) : null; }
+function setLineaSeleccionada(v) { const r = document.getElementById(`l${v}`); if (r) r.checked = true; }
+function nowISO() { return new Date().toISOString(); }
+function fmtHour(dtISO) { const d = new Date(dtISO); return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+function fmtDateTime(iso){ const d = new Date(iso); return d.toLocaleString(); }
+function pad3(n){ return String(n).padStart(3,"0"); }
+
+const RX_PATTERN = /^Rack\d{3}$/;
+const POS_PATTERN = /^P\d{3}$/;
+
+function autoformatRack(value) {
+  const v = (value || "").trim();
+  if (RX_PATTERN.test(v)) return v;
+  if (/^\d{1,3}$/.test(v)) return `Rack${pad3(parseInt(v,10))}`;
+  const m = /^Rack(\d{1,3})$/.exec(v);
+  if (m) return `Rack${pad3(parseInt(m[1],10))}`;
+  return v;
+}
+function autoformatPos(value) {
+  const v = (value || "").trim();
+  if (POS_PATTERN.test(v)) return v;
+  if (/^\d{1,3}$/.test(v)) return `P${pad3(parseInt(v,10))}`;
+  const m = /^P(\d{1,3})$/.exec(v);
+  if (m) return `P${pad3(parseInt(m[1],10))}`;
+  return v;
+}
+
+// Simulador de QR (reemplaza con tu SDK/lector real)
+function simulateQRScan(placeholder = "Scan value") {
+  const val = prompt("Simulación de escaneo QR:\nPega aquí el valor leído por el QR", placeholder);
+  return val || "";
+}
+
+// ====== “Último formulario” por línea ======
+function loadLastByLine(){
+  return loadJSON(LS_KEYS.FORM_LAST_BY_LINE, {1:null,2:null,3:null,4:null});
+}
+function saveLastByLine(map){
+  saveJSON(LS_KEYS.FORM_LAST_BY_LINE, map);
+}
+function prefillFromLast(linea){
+  const map = loadLastByLine();
+  const last = map[linea] || null;
+  if (!last) return;
+  inputOperador.value = last.operador || "";
+  inputCodigoSeco.value = last.codigoSeco || "";
+  inputFirmando.value = last.firmando || "— Se autocompleta al validar —";
+  inputCantidad.value = last.cantidad || "";
+  inputNumRack.value = last.numRack || "";
+  inputPosRack.value = last.posRack || "";
+}
+
+// Cuando cambie la línea, precargar su último formulario
+document.querySelectorAll('input[name="linea"]').forEach(r=>{
+  r.addEventListener("change", ()=>{
+    const linea = getLineaSeleccionada();
+    // limpia primero para no mezclar
+    inputOperador.value = "";
+    inputCodigoSeco.value = "";
+    inputFirmando.value = "— Se autocompleta al validar —";
+    inputCantidad.value = "";
+    inputNumRack.value = "";
+    inputPosRack.value = "";
+    // prefill propio de esa línea
+    prefillFromLast(linea);
+  });
+});
+
+// ====== Prefill inicial ======
+(function prefillInit(){
+  const linea = getLineaSeleccionada();
+  if (linea) prefillFromLast(linea);
+})();
+
+// Autocompletar “Firmando el acumulador”
+inputCodigoSeco.addEventListener("input", () => {
+  inputFirmando.value = inputCodigoSeco.value ? `Acum: ${inputCodigoSeco.value.toUpperCase()}` : "— Se autocompleta al validar —";
+});
+inputNumRack.addEventListener("blur", () => { inputNumRack.value = autoformatRack(inputNumRack.value); });
+inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos(inputPosRack.value); });
+
+// ====== Guardar Registro ======
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const linea = getLineaSeleccionada();
+  const operador = inputOperador.value.trim();
+  const codigoSeco = inputCodigoSeco.value.trim();
+  const firmando = inputFirmando.value.trim();
+  const cantidad = parseInt(inputCantidad.value || "0",10);
+  let rack = autoformatRack(inputNumRack.value);
+  let posicion = autoformatPos(inputPosRack.value);
+
+  inputNumRack.value = rack;
+  inputPosRack.value = posicion;
+
+  if (!linea || !operador || !codigoSeco || !cantidad || !rack || !posicion) {
+    alert("Completa todos los campos del registro.");
+    return;
+  }
+  if (!RX_PATTERN.test(rack)) { alert('El número de rack debe tener formato "Rack###", ej. "Rack001".'); inputNumRack.focus(); return; }
+  if (!POS_PATTERN.test(posicion)) { alert('La posición debe tener formato "P###", ej. "P002".'); inputPosRack.focus(); return; }
+
+  // 1) Persistir último formato por línea
+  const map = loadLastByLine();
+  map[linea] = { linea, operador, codigoSeco, firmando, cantidad, numRack:rack, posRack:posicion };
+  saveLastByLine(map);
+
+  // 2) Enviar a Controlistas (pendientes) con trazabilidad
+  const nuevo = {
+    id: crypto.randomUUID(),
+    linea, operador, codigoSeco, firmando, cantidad,
+    rack, posicion,
+    creadoEn: nowISO(),
+    registradoPorId: CURRENT_USER?.id || null,
+    registradoPorNombre: CURRENT_USER?.name || operador,
+    registradoPorRol: CURRENT_USER?.role || "desconocido"
+  };
+  const controlistasPend = loadJSON(LS_KEYS.CONTROLISTAS, []);
+  controlistasPend.push(nuevo);
+  saveJSON(LS_KEYS.CONTROLISTAS, controlistasPend);
+
+  // 3) Marcar en uso
+  enUso.posiciones[posicion] = true;
+  enUso.racks[rack] = true;
+  saveJSON(LS_KEYS.EN_USO, enUso);
+
+  // 4) Añadir a Retirar (misma línea como demo; Controlistas puede reenviar)
+  (retirarListas[linea] = retirarListas[linea]||[]).push({
+    posicion, rack, linea, refId:nuevo.id,
+    operador: nuevo.operador, empleado: nuevo.registradoPorId,
+    codigoSeco, cantidad, creadoEn: nuevo.creadoEn, registradoPorNombre: nuevo.registradoPorNombre
+  });
+  saveJSON(LS_KEYS.RETIRAR, retirarListas);
+
+  renderAll();
+  alert("Registro guardado y enviado a Controlistas.");
+});
+
+// ====== Retirar -> mover a Salidas ======
+function handleRetirar(item, linea) {
+  const registro = {
+    id: crypto.randomUUID(),
+    linea,
+    posicion: item.posicion,
+    rack: item.rack,
+    refId: item.refId || null,
+    operador: item.operador || null,
+    empleado: item.empleado || null,
+    codigoSeco: item.codigoSeco || null,
+    cantidad: item.cantidad ?? null,
+    creadoEn: item.creadoEn || nowISO(),
+    registradoPorNombre: item.registradoPorNombre || null,
+    entrada: null,   // {byId, byName, confirmLinea, confirmRack, at}
+    salida: null,    // {byId, byName, at}
+    entradaGuardadaEn: null
+  };
+  (salidasListas[linea] = salidasListas[linea] || []).push(registro);
+  saveJSON(LS_KEYS.SALIDAS, salidasListas);
+
+  // quitar de retirar
+  const arr = retirarListas[linea] || [];
+  const idx = arr.findIndex(x => x.posicion === item.posicion && x.rack === item.rack);
+  if (idx >= 0) { arr.splice(idx,1); retirarListas[linea] = arr; saveJSON(LS_KEYS.RETIRAR, retirarListas); }
+
+  renderAll();
+}
+
+// ====== Entrada / Salida ======
+
+// Abrir detalle al hacer click en fila (sin activar si se hizo click en botón)
+function attachRowInfoHandlers(tbody, lista){
+  tbody.querySelectorAll("tr").forEach((tr, i) => {
+    tr.addEventListener("click", (ev) => {
+      if (ev.target.closest("button")) return;
+      const reg = lista[i];
+      if (!reg) return;
+      const detalle = [
+        `Línea: ${reg.linea}`,
+        `Posición: ${reg.posicion}`,
+        `Rack: ${reg.rack}`,
+        `Operador: ${reg.operador ?? "—"}`,
+        `Código de seco: ${reg.codigoSeco ?? "—"}`,
+        `Cantidad: ${reg.cantidad ?? "—"}`,
+        `Registrado por: ${reg.registradoPorNombre ?? "—"}`,
+        `Creado en: ${fmtDateTime(reg.creadoEn)}`,
+        `Entrada: ${reg.entrada ? (reg.entrada.byName + " • " + fmtDateTime(reg.entrada.at) + " • Línea conf: " + reg.entrada.confirmLinea + " • Rack conf: " + reg.entrada.confirmRack) : "—"}`,
+        `Salida: ${reg.salida ? (reg.salida.byName + " • " + fmtDateTime(reg.salida.at)) : "—"}`
+      ].join("<br>");
+      infoDetalle.innerHTML = detalle;
+      modalInfo.showModal();
+    });
+  });
+}
+
+// Abrir modal de ENTRADA
+function openEntradaModal(reg) {
+  currentSalida = reg;
+
+  // Reset de estado de línea confirmada y UI de botones
+  entradaLineaConfirmada = false;
+  inputConfirmLineaValue.value = "";
+  confirmLineaContainer
+    ?.querySelectorAll("button[data-linea]")
+    .forEach(b => b.classList.remove("active"));
+
+  // Resumen
+  entradaResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
+
+  // Sugerir nombre (editable)
+  inputPatineroEntrada.value = CURRENT_USER?.name || "";
+
+  // Limpiar confirmación de rack
+  inputConfirmRack.value = "";
+
+  modalEntrada.showModal();
+}
+
+// Delegación: botones "Línea 1/2/3/4"
+confirmLineaContainer?.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-linea]");
+  if (!btn) return;
+  const lineaSel = parseInt(btn.dataset.linea, 10);
+  if (!Number.isInteger(lineaSel)) return;
+
+  inputConfirmLineaValue.value = String(lineaSel);
+  entradaLineaConfirmada = true;
+
+  // Marcar botón activo
+  confirmLineaContainer.querySelectorAll("button[data-linea]")
+    .forEach(b => b.classList.toggle("active", b === btn));
+});
+
+// Botón "Escanear QR" del rack (simulado)
+btnScanRack?.addEventListener("click", () => {
+  const scanned = simulateQRScan("Rack001");
+  if (scanned) {
+    inputConfirmRack.value = autoformatRack(scanned);
+  }
+});
+
+// Guardar ENTRADA
+formEntrada.addEventListener("click", (e) => {
+  const btn = e.target;
+  if (!(btn instanceof HTMLButtonElement)) return;
+
+  if (btn.value === "save" && currentSalida) {
+    const byName = inputPatineroEntrada.value.trim() || CURRENT_USER?.name || "";
+    const byId = CURRENT_USER?.id || null;
+
+    // 1) Línea confirmada por botones y que coincida con la del registro
+    const lineaSeleccionada = parseInt(inputConfirmLineaValue.value, 10);
+    if (!entradaLineaConfirmada || lineaSeleccionada !== currentSalida.linea) {
+      alert(`Debes seleccionar la línea correcta (Línea ${currentSalida.linea}).`);
+      return;
+    }
+
+    // 2) Confirmación de Rack obligatoria y coincidente
+    let confirmRack = autoformatRack(inputConfirmRack.value.trim());
+    if (!confirmRack) {
+      alert("Debes confirmar el Rack (ej. Rack001).");
+      inputConfirmRack.focus();
+      return;
+    }
+    inputConfirmRack.value = confirmRack; // normaliza en UI
+    if (confirmRack !== currentSalida.rack) {
+      alert(`El Rack confirmado (${confirmRack}) no coincide con el asignado (${currentSalida.rack}).`);
+      inputConfirmRack.focus();
+      return;
+    }
+
+    // Guardar entrada
+    currentSalida.entrada = {
+      byId,
+      byName,
+      confirmLinea: currentSalida.linea,
+      confirmRack,
+      at: nowISO()
+    };
+    currentSalida.entradaGuardadaEn = Date.now();
+    saveJSON(LS_KEYS.SALIDAS, salidasListas);
+
+    modalEntrada.close();
+    renderAll();
+  }
+
+  if (btn.value === "cancel") modalEntrada.close();
+});
+
+// Habilitar "Dar salida" tras 1 minuto
+function canShowDarSalida(reg) {
+  if (!reg.entradaGuardadaEn) return false;
+  return (Date.now() - reg.entradaGuardadaEn) >= 60 * 1000; // 1 min
+}
+
+// Abrir modal de SALIDA
+function openSalidaModal(reg) {
+  currentSalida = reg;
+  salidaResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
+  inputValidacionPatinero.value = CURRENT_USER?.name || "";
+  modalSalida.showModal();
+}
+
+// Guardar SALIDA
+formSalida.addEventListener("click", (e) => {
+  const btn = e.target;
+  if (!(btn instanceof HTMLButtonElement)) return;
+
+  if (btn.value === "save" && currentSalida) {
+    const byName = inputValidacionPatinero.value.trim() || CURRENT_USER?.name || "";
+    const byId = CURRENT_USER?.id || null;
+    if (!byName) return;
+
+    // guardar salida
+    currentSalida.salida = { byId, byName, at: nowISO() };
+
+    // liberar enUso
+    delete enUso.posiciones[currentSalida.posicion];
+    delete enUso.racks[currentSalida.rack];
+    saveJSON(LS_KEYS.EN_USO, enUso);
+
+    // eliminar el registro de la lista de salidas
+    const lista = salidasListas[currentSalida.linea] || [];
+    const idx = lista.findIndex(x => x.id === currentSalida.id);
+    if (idx >= 0) { lista.splice(idx,1); salidasListas[currentSalida.linea] = lista; }
+    saveJSON(LS_KEYS.SALIDAS, salidasListas);
+
+    modalSalida.close();
+    renderAll();
+  }
+
+  if (btn.value === "cancel") modalSalida.close();
+});
+
+// ====== Render ======
+function renderRetirar() {
+  function fill(tbody, lista, linea) {
+    tbody.innerHTML = "";
+    if (!lista || !lista.length) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; opacity:.7">Sin elementos</td></tr>`;
+      return;
+    }
+    lista.forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.posicion}</td>
+        <td>${item.rack}</td>
+        <td><button class="accent" type="button">Retirar</button></td>
+      `;
+      tr.querySelector("button").addEventListener("click", () => handleRetirar(item, linea));
+      tbody.appendChild(tr);
+    });
+  }
+  fill(tablaRetirar1, retirarListas[1]||[], 1);
+  fill(tablaRetirar2, retirarListas[2]||[], 2);
+  fill(tablaRetirar3, retirarListas[3]||[], 3);
+}
+
+function renderSalidas() {
+  function fill(tbody, lista) {
+    tbody.innerHTML = "";
+
+    // Activo (con entrada y sin salida) SOLO dentro de ESTA línea
+    const activo = (lista || []).find(r => r.entrada && !r.salida);
+    const activoId = activo?.id || null;
+
+    if (!lista || !lista.length) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; opacity:.7">Sin elementos</td></tr>`;
+      return;
+    }
+
+    lista.forEach(reg => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${reg.posicion}</td><td>${reg.rack}</td><td></td><td></td>`;
+
+      if (activoId && reg.id !== activoId) {
+        // Mientras otro esté activo en esta línea, este no muestra botones
+      } else {
+        if (!reg.entrada) {
+          // No hay activo en esta línea: puede dar entrada
+          if (!activoId) {
+            const btnEntrada = document.createElement("button");
+            btnEntrada.type = "button";
+            btnEntrada.textContent = "Dar entrada";
+            btnEntrada.className = "primary";
+            btnEntrada.addEventListener("click", () => openEntradaModal(reg));
+            tr.children[2].appendChild(btnEntrada);
+          }
+        } else {
+          // Es el activo de la línea: muestra salida (verde si habilitado)
+          const btnSalida = document.createElement("button");
+          btnSalida.type = "button";
+          btnSalida.textContent = "Dar salida";
+          if (canShowDarSalida(reg)) {
+            btnSalida.className = "accent"; // verde
+            btnSalida.disabled = false;
+            btnSalida.addEventListener("click", () => openSalidaModal(reg));
+          } else {
+            btnSalida.className = "primary";
+            btnSalida.disabled = true;
+          }
+          tr.children[3].appendChild(btnSalida);
+        }
+      }
+
+      tbody.appendChild(tr);
+    });
+
+    // detalle on row click
+    attachRowInfoHandlers(tbody, lista);
+  }
+
+  fill(tablaSalidas1, salidasListas[1]||[]);
+  fill(tablaSalidas2, salidasListas[2]||[]);
+  fill(tablaSalidas3, salidasListas[3]||[]);
+}
+
+function renderPosiciones() {
+  tablaPosiciones.innerHTML = "";
+  for (let i=1;i<=450;i++){
+    const p = `P${pad3(i)}`;
+    const libre = !enUso.posiciones[p];
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p}</td><td class="${libre ? "ok":"busy"}">${libre ? "Libre":"Ocupada"}</td><td>—</td>`;
+    tablaPosiciones.appendChild(tr);
+  }
+}
+
+function renderRacks() {
+  tablaRacks.innerHTML = "";
+  for (let i=1;i<=435;i++){
+    const r = `Rack${pad3(i)}`;
+    const libre = !enUso.racks[r];
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r}</td><td class="${libre ? "ok":"busy"}">${libre ? "Listo":"En uso"}</td>`;
+    tablaRacks.appendChild(tr);
+  }
+}
+
+function renderAll() {
+  renderRetirar();
+  renderSalidas();
+  renderPosiciones();
+  renderRacks();
+}
+
+// Render inicial + refresco periódico (para habilitar salida al minuto)
+renderAll();
+setInterval(() => renderSalidas(), 5000);
+
+// Comentarios (placeholder)
+document.getElementById("formComentario")?.addEventListener("submit", (e)=>{
+  e.preventDefault();
+  alert("Comentario enviado (demo).");
+});
