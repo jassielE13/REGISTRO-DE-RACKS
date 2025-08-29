@@ -2,7 +2,7 @@
 // role: "patinero" | "controlista"
 const DIRECTORY = {
   // Ejemplos — ajusta a tus usuarios reales:
-  "1522761": { name: "Enrique", role: "patinero" },
+  "63182": { name: "Jassiel", role: "patinero" },
   "1000001": { name: "Ana Pérez", role: "patinero" },
   "2000001": { name: "Luis Gómez", role: "controlista" },
   "2000002": { name: "María Ruiz", role: "controlista" }
@@ -61,4 +61,5 @@ function showError(msg){
   errorMsg.hidden = false;
   employeeIdInput.focus();
 }
+
 
