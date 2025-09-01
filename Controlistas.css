@@ -63,14 +63,36 @@ body {
 .panel-header { margin-bottom: 1rem; }
 .hint { color: var(--c-muted); margin-top: .75rem; }
 
+/* Aux layout */
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.badge { border: 1px solid var(--c-border); background: var(--c-panel); color: var(--c-text); padding: .35rem .7rem; border-radius: 999px; font-weight: 600; box-shadow: var(--shadow); }
+
+/* Buscadores */
+.search {
+  width: min(280px, 48vw);
+  padding: .6rem .8rem;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--c-text);
+}
+
 /* ===== TABLES ===== */
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: .75rem; border-bottom: 1px solid var(--c-border); }
 .table th { text-align: left; font-weight: 600; color: var(--c-muted); }
 .table tr:hover { background: color-mix(in srgb, var(--c-border) 45%, transparent); }
 .table tr.clickable { cursor: pointer; }
-.ok { color: var(--c-accent); font-weight: 600; }
-.busy { color: var(--c-danger); font-weight: 600; }
+
+/* Separador por código de seco */
+.tr-separator td {
+  background: var(--c-border);
+  color: var(--c-text);
+  font-weight: 600;
+  text-align: left;
+  padding: .5rem .75rem;
+  border-top: 2px solid var(--c-primary);
+}
 
 /* ===== FORMS / BUTTONS ===== */
 .field { display: grid; gap: .5rem; }
@@ -80,7 +102,7 @@ body {
 }
 .with-actions { display: flex; gap: .5rem; }
 .with-actions input { flex: 1; }
-.editor { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .75rem; }
+.editor { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
 .chip { display: flex; gap: .35rem; align-items: center; border: 1px dashed var(--c-border); border-radius: 999px; padding: .35rem .6rem; }
 
 button, input[type="submit"] { cursor: pointer; }
@@ -120,20 +142,18 @@ button.ghost:hover { background: var(--c-border); }
 #retL2:checked ~ .tab-content .tab-pane:nth-of-type(2),
 #retL3:checked ~ .tab-content .tab-pane:nth-of-type(3) { display: block; }
 
-/* ===== LISTAS / CARDS / GRID ===== */
-.cards { list-style: none; display: grid; gap: .75rem; }
-.cards li {
-  border: 1px solid var(--c-border); border-radius: var(--radius); padding: .75rem; background: var(--c-panel);
-  display: grid; gap: .35rem; cursor: pointer;
-}
-.cards li small { color: var(--c-muted); }
-
+/* ===== GRID (Posiciones / Racks) con estado estilo Patineros ===== */
 .grid-catalogo { list-style: none; display: grid; gap: .6rem; grid-template-columns: repeat(6, 1fr); }
 .grid-catalogo li {
-  border: 1px solid var(--c-border); border-radius: var(--radius); padding: .5rem .6rem; text-align: center;
-  cursor: pointer; background: var(--c-panel);
+  border: 1px solid var(--c-border); border-radius: var(--radius); padding: .7rem .6rem;
+  background: var(--c-panel); text-align: center; cursor: pointer; display: grid; gap: .35rem;
 }
 .grid-catalogo li:hover { background: color-mix(in srgb, var(--c-border) 45%, transparent); }
+.tile-title { font-weight: 700; }
+.tile-state { font-size: .85rem; padding: .2rem .5rem; border-radius: 999px; display: inline-block; }
+.state-ok  { background: rgba(22,163,74,.15); color: var(--c-accent); border: 1px solid rgba(22,163,74,.3); }
+.state-busy{ background: rgba(220,38,38,.15); color: var(--c-danger); border: 1px solid rgba(220,38,38,.3); }
+
 @media (max-width: 1100px){ .grid-catalogo { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 760px){ .grid-catalogo { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 520px){ .grid-catalogo { grid-template-columns: repeat(2, 1fr); } }
@@ -191,33 +211,4 @@ button.ghost:hover { background: var(--c-border); }
 @media (max-width: 480px) {
   .topbar { flex-direction: column; gap: .5rem; }
   .topbar .logout { align-self: flex-end; }
-}
-
-/* Layout para título + total */
-.row-between { 
-  display: flex; 
-  align-items: center; 
-  justify-content: space-between; 
-  gap: .75rem; 
-}
-
-/* Badge de total */
-.badge {
-  border: 1px solid var(--c-border);
-  background: var(--c-panel);
-  color: var(--c-text);
-  padding: .35rem .7rem;
-  border-radius: 999px;
-  font-weight: 600;
-  box-shadow: var(--shadow);
-}
-
-/* Separador por código de seco */
-.tr-separator td {
-  background: var(--c-border);
-  color: var(--c-text);
-  font-weight: 600;
-  text-align: left;
-  padding: .5rem .75rem;
-  border-top: 2px solid var(--c-primary);
 }
