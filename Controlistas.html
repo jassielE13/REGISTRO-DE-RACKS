@@ -20,7 +20,7 @@
       <a href="#racks">Racks</a>
       <a href="#comentarios">Comentarios</a>
     </nav>
-    <a href="./index.html" class="logout">Salir</a>
+    <a href="../Login/index.html" class="logout">Salir</a>
   </header>
 
   <main class="container">
@@ -86,26 +86,25 @@
         </div>
       </div>
 
+      <p class="hint">Usa <em>Validar</em> para confirmar el código de seco. Al guardar, el registro pasa a <a href="#produccion">Producción</a>.</p>
     </section>
 
-    <!-- PRODUCCIÓN (LISTADO ÚNICO) -->
+    <!-- PRODUCCIÓN -->
     <section id="produccion" class="panel">
-  <header class="panel-header row-between">
-    <h2>Producción</h2>
-    <span id="prodTotal" class="badge">Total: 0</span>
-  </header>
-  <table class="table" id="tblProdAll">
-    <thead>
-      <tr>
-        <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-        <th>Rack</th><th>Posición</th><th>Validado por</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p class="hint">Haz clic en cualquier registro para ver su detalle y elegir a qué <strong>Línea 1–3</strong> mandarlo a <strong>Retirar</strong> (salidas).</p>
-</section>
-
+      <header class="panel-header row-between">
+        <h2>Producción</h2>
+        <span id="prodTotal" class="badge">Total: 0</span>
+      </header>
+      <table class="table" id="tblProdAll">
+        <thead>
+          <tr>
+            <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+            <th>Rack</th><th>Posición</th><th>Validado por</th>
+          </tr>
+        </thead><tbody></tbody>
+      </table>
+      <p class="hint">Haz clic en cualquier registro para ver su detalle y elegir a qué <strong>Línea 1–3</strong> mandarlo a <strong>Retirar</strong> (salidas).</p>
+    </section>
 
     <!-- RETIRAR (HISTÓRICO + ACTUAL) -->
     <section id="retirar" class="panel">
@@ -128,16 +127,22 @@
 
     <!-- POSICIONES -->
     <section id="posiciones" class="panel">
-      <header class="panel-header"><h2>Posiciones (P001–P450)</h2></header>
+      <header class="panel-header row-between">
+        <h2>Posiciones (P001–P450)</h2>
+        <input id="posSearch" class="search" type="search" placeholder="Buscar" />
+      </header>
       <ul id="gridPos" class="grid-catalogo"></ul>
-      <p class="hint">Toca cualquier posición para editar estado y campos adicionales.</p>
+      <p class="hint">Toca cualquier posición para editar estado y observaciones.</p>
     </section>
 
     <!-- RACKS -->
     <section id="racks" class="panel">
-      <header class="panel-header"><h2>Racks (Rack001–Rack435)</h2></header>
+      <header class="panel-header row-between">
+        <h2>Racks (Rack001–Rack435)</h2>
+        <input id="rackSearch" class="search" type="search" placeholder="Buscar" />
+      </header>
       <ul id="gridRack" class="grid-catalogo"></ul>
-      <p class="hint">Toca cualquier rack para editar estado y campos adicionales.</p>
+      <p class="hint">Toca cualquier rack para editar estado y observaciones.</p>
     </section>
 
     <!-- COMENTARIOS -->
@@ -198,20 +203,27 @@
   <dialog id="modalPos" class="modal">
     <form method="dialog" class="modal-content" id="formPos">
       <h3 id="posTitle">Editar posición</h3>
+
+      <label class="field">
+        <span>Estado</span>
+        <select id="posEstado">
+          <option value="disponible">Disponible</option>
+          <option value="ocupada">Ocupada</option>
+        </select>
+      </label>
+
       <div class="editor">
         <label class="chip"><input type="checkbox" id="posActuador"> Actuador dañado</label>
         <label class="chip"><input type="checkbox" id="posTarjeta"> Tarjeta dañada</label>
         <label class="chip"><input type="checkbox" id="posAbraz"> Abrazaderas manifold dañadas</label>
         <label class="chip"><input type="checkbox" id="posCable"> Cable de bajada dañado</label>
       </div>
-      <label class="field">
-        <span>Responsable</span>
-        <input id="posResp" type="text" placeholder="Nombre del controlista" />
-      </label>
+
       <label class="field">
         <span>Observaciones</span>
         <textarea id="posObs" rows="3" placeholder="Notas, detalles, etc."></textarea>
       </label>
+
       <div class="actions end">
         <button class="primary" value="save">Guardar</button>
         <button class="secondary" value="cancel">Cancelar</button>
@@ -223,19 +235,26 @@
   <dialog id="modalRack" class="modal">
     <form method="dialog" class="modal-content" id="formRack">
       <h3 id="rackTitle">Editar rack</h3>
+
+      <label class="field">
+        <span>Estado</span>
+        <select id="rkEstado">
+          <option value="disponible">Disponible</option>
+          <option value="ocupado">Ocupado</option>
+        </select>
+      </label>
+
       <div class="editor">
         <label class="chip"><input type="checkbox" id="rkSoporte"> Soporte de dren dañado</label>
         <label class="chip"><input type="checkbox" id="rkPorta"> Porta manguera dañada</label>
         <label class="chip"><input type="checkbox" id="rkTina"> Tina dañada</label>
       </div>
-      <label class="field">
-        <span>Responsable</span>
-        <input id="rkResp" type="text" placeholder="Nombre del controlista" />
-      </label>
+
       <label class="field">
         <span>Observaciones</span>
         <textarea id="rkObs" rows="3" placeholder="Notas, detalles, etc."></textarea>
       </label>
+
       <div class="actions end">
         <button class="primary" value="save">Guardar</button>
         <button class="secondary" value="cancel">Cancelar</button>
@@ -246,5 +265,4 @@
   <script src="Controlistas.js"></script>
 </body>
 </html>
-
 
