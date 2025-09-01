@@ -1,15 +1,15 @@
 // ====== Keys ======
 const LS_KEYS = {
-  CONTROLISTAS: "controlistas_pendientes",   // enviados por Patineros (pendientes de validar)
-  PRODUCCION:   "controlistas_produccion",    // validados por Controlista
-  RETIRAR:      "retirar_listas",             // {1:[],2:[],3:[],4:[]}  —— usado por Patineros (activo)
-  RETIRAR_HIST: "retirar_historial_all",      // [] historial permanente mostrado en Controlistas
+  CONTROLISTAS: "controlistas_pendientes",
+  PRODUCCION:   "controlistas_produccion",
+  RETIRAR:      "retirar_listas",        // usado por Patineros (activo)
+  RETIRAR_HIST: "retirar_historial_all", // histórico Controlistas
   STATUS_POS_DET:  "status_posiciones_detalle",
   STATUS_RACKS_DET: "status_racks_detalle",
   COMMENTS:     "comentarios",
   COMMENTS_READ:"comentarios_leidos",
-  EN_USO:       "en_uso",                     // {posiciones:{}, racks:{}}
-  HIST:         "historial_movimientos"       // [{rack,posicion,evento,by,at,extra}]
+  EN_USO:       "en_uso",                // {posiciones:{}, racks:{}}
+  HIST:         "historial_movimientos"
 };
 
 // ====== Utils ======
@@ -19,21 +19,18 @@ function loadJSON(k, fb){ try{ const r=localStorage.getItem(k); return r?JSON.pa
 function saveJSON(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
 function pad3(n){ return String(n).padStart(3,"0"); }
 function fmtDT(iso){ const d=new Date(iso); return d.toLocaleString(); }
-function simulateQRScan(ph=""){ const v = prompt("Simulación de escaneo QR\nPega/teclea el valor:", ph); return v || ""; }
 function currentUser(){ try{return JSON.parse(localStorage.getItem("CURRENT_USER")||"null");}catch{return null;} }
-function anyTrue(obj){ return !!obj && Object.values(obj).some(v=>v===true); }
 
 // ====== Estado ======
 let pendientes = loadJSON(LS_KEYS.CONTROLISTAS, []);
 let produccion = loadJSON(LS_KEYS.PRODUCCION, []);
-let retirar    = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[],4:[]}); // ACTIVO (Patineros)
-let retirarHist = loadJSON(LS_KEYS.RETIRAR_HIST, []);              // Histórico para vista Controlistas
-let posStatus  = loadJSON(LS_KEYS.STATUS_POS_DET, {});
-let rackStatus = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});
+let retirar    = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[],4:[]});
+let retirarHist= loadJSON(LS_KEYS.RETIRAR_HIST, []);
+let posStatus  = loadJSON(LS_KEYS.STATUS_POS_DET, {});  // P001:{estado, actuador, tarjeta, abrazaderas, cable_bajada, obs}
+let rackStatus = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});// Rack001:{estado, soporte_dren, porta_manguera, tina, obs}
 let comentarios= loadJSON(LS_KEYS.COMMENTS, []);
 let comentariosLeidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
 let enUso      = loadJSON(LS_KEYS.EN_USO, {posiciones:{}, racks:{}});
-let historial  = loadJSON(LS_KEYS.HIST, []); // (Patineros lo llena al dar entrada/salida)
 
 // ====== Nav activo ======
 function highlightActive(){
@@ -49,10 +46,12 @@ const tblProdAll = $("#tblProdAll tbody");
 const ulRet = { 1: $("#ulRet1"), 2: $("#ulRet2"), 3: $("#ulRet3") };
 const gridPos = $("#gridPos");
 const gridRack = $("#gridRack");
+const posSearch = $("#posSearch");
+const rackSearch = $("#rackSearch");
 const ulComentarios = $("#ulComentarios");
 const ulComentariosLeidos = $("#ulComentariosLeidos");
 
-// Modales
+// Modales Validación
 const modalValidar = $("#modalValidar");
 const formValidar = $("#formValidar");
 const valResumen = $("#valResumen");
@@ -61,54 +60,36 @@ const valChips   = $("#valChips");
 const valCodigo  = $("#valCodigo");
 const btnScanVal = $("#btnScanVal");
 
+// Modal Info
 const modalInfo = $("#modalInfo");
 const infoBody  = $("#infoBody");
 const infoActions = $("#infoActions");
 
+// Modales Pos/Rack
 const modalPos  = $("#modalPos");
 const posTitle  = $("#posTitle");
 const formPos   = $("#formPos");
-const posAct    = $("#posActuador");
-const posTar    = $("#posTarjeta");
-const posAbr    = $("#posAbraz");
-const posCab    = $("#posCable");
-const posResp   = $("#posResp");
+const posEstado = $("#posEstado");
 const posObs    = $("#posObs");
+const posActuador = $("#posActuador");
+const posTarjeta  = $("#posTarjeta");
+const posAbraz    = $("#posAbraz");
+const posCable    = $("#posCable");
 
 const modalRack = $("#modalRack");
 const rackTitle = $("#rackTitle");
 const formRack  = $("#formRack");
-const rkSup     = $("#rkSoporte");
-const rkPor     = $("#rkPorta");
-const rkTin     = $("#rkTina");
-const rkResp    = $("#rkResp");
+const rkEstado  = $("#rkEstado");
 const rkObs     = $("#rkObs");
-
-// ====== Helpers ======
-function groupByLinea(arr){
-  const map = {1:[],2:[],3:[],4:[]};
-  arr.forEach(r => { (map[r.linea] = map[r.linea] || []).push(r); });
-  return map;
-}
-function buildStatusChipsHTML(reg){
-  const pos = reg.posicion;
-  const rack = reg.rack;
-  const posOcup = !!enUso.posiciones?.[pos];
-  const rackOcup = !!enUso.racks?.[rack];
-  const posDet = posStatus[pos] || {};
-  const rackDet = rackStatus[rack] || {};
-  const posDamage = anyTrue(posDet);
-  const rackDamage = anyTrue(rackDet);
-  const posMain = `<span class="chip stat ${posOcup?'busy':'ok'}">${pos} • ${posOcup?'Ocupada':'Libre'}</span>`;
-  const rackMain= `<span class="chip stat ${rackOcup?'busy':'ok'}">${rack} • ${rackOcup?'En uso':'Listo'}</span>`;
-  const posDmg  = posDamage ? `<span class="chip stat warn">Posición con daños</span>` : '';
-  const rackDmg = rackDamage ? `<span class="chip stat warn">Rack con daños</span>` : '';
-  return `${posMain} ${posDmg} ${rackMain} ${rackDmg}`;
-}
+const rkSoporte = $("#rkSoporte");
+const rkPorta   = $("#rkPorta");
+const rkTina    = $("#rkTina");
 
 // ====== Renders ======
 function renderPendientes(){
-  const byLine = groupByLinea(pendientes);
+  const byLine = {1:[],2:[],3:[],4:[]};
+  pendientes.forEach(r => (byLine[r.linea] = byLine[r.linea] || []).push(r));
+
   [1,2,3,4].forEach(l => {
     const tb = tblPend[l]; tb.innerHTML = "";
     const arr = byLine[l] || [];
@@ -134,6 +115,16 @@ function renderPendientes(){
   });
 }
 
+function updateProdTotal(){
+  const el = $("#prodTotal");
+  if (!el) return;
+  const total = (produccion || []).reduce((sum, r) => {
+    const n = parseFloat(r?.cantidad);
+    return sum + (isNaN(n) ? 0 : n);
+  }, 0);
+  el.textContent = `Total: ${total}`;
+}
+
 function renderProduccion(){
   tblProdAll.innerHTML = "";
   if (!produccion.length){
@@ -151,13 +142,11 @@ function renderProduccion(){
   });
 
   Object.entries(grupos).forEach(([codigo, regs]) => {
-    // separador
     const sep = document.createElement("tr");
     sep.classList.add("tr-separator");
     sep.innerHTML = `<td colspan="8">Código de seco: ${codigo}</td>`;
     tblProdAll.appendChild(sep);
 
-    // registros del grupo
     regs.forEach(reg => {
       const tr = document.createElement("tr");
       tr.classList.add("clickable");
@@ -178,7 +167,6 @@ function renderProduccion(){
 
   updateProdTotal();
 }
-
 
 // RETIRAR — histórico permanente (1–3)
 function renderRetirar(){
@@ -202,11 +190,55 @@ function renderRetirar(){
         <small>Creado: ${fmtDT(it.creadoEn)} — Operador: ${it.operador ?? "—"} — Código: ${it.codigoSeco ?? "—"} — Cant.: ${it.cantidad ?? "—"}</small>
         <small>Registrado por: ${it.registradoPorNombre ?? "—"}</small>
       `;
-      li.addEventListener("click", ()=> openInfoRegistro(it)); // abre detalle (sin historial)
+      li.addEventListener("click", ()=> openInfoRegistro(it));
       ul.appendChild(li);
     });
   });
 }
+
+/* ==== POSICIONES / RACKS estilo Patineros + buscador ==== */
+function tileHTML(label, ocupado){
+  const stateClass = ocupado ? 'state-busy' : 'state-ok';
+  const stateText  = ocupado ? 'Ocupada' : 'Disponible';
+  return `
+    <div class="tile-title">${label}</div>
+    <div class="tile-state ${stateClass}">${stateText}</div>
+  `;
+}
+
+function renderPosCatalogo(filter=""){
+  gridPos.innerHTML = "";
+  const f = (filter||"").toLowerCase().trim();
+  for (let i=1;i<=450;i++){
+    const key = "P"+pad3(i);
+    if (f && !key.toLowerCase().includes(f)) continue;
+    const ocupado = !!enUso.posiciones?.[key];
+    const li = document.createElement("li");
+    li.innerHTML = tileHTML(key, ocupado);
+    li.addEventListener("click", ()=> openPosEditor(key));
+    gridPos.appendChild(li);
+  }
+}
+function renderRackCatalogo(filter=""){
+  gridRack.innerHTML = "";
+  const f = (filter||"").toLowerCase().trim();
+  for (let i=1;i<=435;i++){
+    const key = "Rack"+pad3(i);
+    if (f && !key.toLowerCase().includes(f)) continue;
+    const ocupado = !!enUso.racks?.[key];
+    const li = document.createElement("li");
+    li.innerHTML = tileHTML(key, ocupado);
+    li.addEventListener("click", ()=> openRackEditor(key));
+    gridRack.appendChild(li);
+  }
+}
+function renderCatalogos(){
+  renderPosCatalogo(posSearch?.value);
+  renderRackCatalogo(rackSearch?.value);
+}
+
+posSearch?.addEventListener("input", ()=> renderPosCatalogo(posSearch.value));
+rackSearch?.addEventListener("input", ()=> renderRackCatalogo(rackSearch.value));
 
 function renderComentarios(){
   ulComentarios.innerHTML = "";
@@ -251,46 +283,25 @@ function renderComentarios(){
   }
 }
 
-function renderCatalogos(){
-  gridPos.innerHTML = "";
-  for (let i=1;i<=450;i++){
-    const key = "P"+pad3(i);
-    const li = document.createElement("li");
-    li.textContent = key;
-    li.addEventListener("click", ()=> openPosEditor(key));
-    gridPos.appendChild(li);
-  }
-  gridRack.innerHTML = "";
-  for (let i=1;i<=435;i++){
-    const key = "Rack"+pad3(i);
-    const li = document.createElement("li");
-    li.textContent = key;
-    li.addEventListener("click", ()=> openRackEditor(key));
-    gridRack.appendChild(li);
-  }
-}
-
 function renderAll(){
   pendientes = loadJSON(LS_KEYS.CONTROLISTAS, []);
   produccion = loadJSON(LS_KEYS.PRODUCCION, []);
-  retirar    = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[],4:[]}); // activo (Patineros)
-  retirarHist= loadJSON(LS_KEYS.RETIRAR_HIST, []);               // histórico Controlistas
+  retirar    = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[],4:[]});
+  retirarHist= loadJSON(LS_KEYS.RETIRAR_HIST, []);
   posStatus  = loadJSON(LS_KEYS.STATUS_POS_DET, {});
   rackStatus = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});
   comentarios= loadJSON(LS_KEYS.COMMENTS, []);
   comentariosLeidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
   enUso      = loadJSON(LS_KEYS.EN_USO, {posiciones:{}, racks:{}});
-  historial  = loadJSON(LS_KEYS.HIST, []);
 
   renderPendientes();
   renderProduccion();
   renderRetirar();
-  renderComentarios();
   renderCatalogos();
+  renderComentarios();
 }
 
-// ====== Modales ======
-// Validar (Pendientes)
+// ====== Validar (Pendientes) ======
 let currentPendiente = null;
 function openValidar(reg){
   currentPendiente = reg;
@@ -304,12 +315,19 @@ function openValidar(reg){
       <dt>Creado en</dt><dd>${fmtDT(reg.creadoEn)}</dd>
     </dl>
   `;
-  valChips.innerHTML = buildStatusChipsHTML(reg);
+  valChips.innerHTML = `
+    <span class="tile-state ${enUso.posiciones?.[reg.posicion]?'state-busy':'state-ok'}">
+      Posición ${enUso.posiciones?.[reg.posicion]?'Ocupada':'Disponible'}
+    </span>
+    <span class="tile-state ${enUso.racks?.[reg.rack]?'state-busy':'state-ok'}">
+      ${enUso.racks?.[reg.rack]?'Rack en uso':'Rack listo'}
+    </span>
+  `;
   valCodigo.value = "";
   modalValidar.showModal();
 }
 btnScanVal.addEventListener("click", ()=>{
-  const v = simulateQRScan(currentPendiente?.codigoSeco || "");
+  const v = prompt("Simulación de escaneo QR\nPega/teclea el código de seco:");
   if (v) valCodigo.value = v;
 });
 formValidar.addEventListener("click", (e)=>{
@@ -340,11 +358,10 @@ formValidar.addEventListener("click", (e)=>{
   if (btn.value === "cancel"){ modalValidar.close(); currentPendiente = null; }
 });
 
-// Info (Producción / Retirar) —— sin historial visual
+// ====== Info producción/retirar (elegir línea 1–3 y mandar a Patineros) ======
 let currentInfoReg = null;
 function openInfoRegistro(reg){
   currentInfoReg = reg;
-
   infoBody.innerHTML = `
     <dl>
       <dt>Línea (actual)</dt><dd>${reg.linea ?? "—"}</dd>
@@ -358,22 +375,18 @@ function openInfoRegistro(reg){
       ${reg.validadoPorNombre ? `<dt>Validado por</dt><dd>${reg.validadoPorNombre} (${fmtDT(reg.validadoEn)})</dd>` : ""}
     </dl>
   `;
-
   modalInfo.showModal();
 }
-
-// Botones: mandar a Retirar (Líneas 1–3) —> Patineros (activo) + histórico Controlistas
 infoActions.addEventListener("click", e=>{
   const btn = e.target.closest("button[data-linea]");
   if (!btn || !currentInfoReg) return;
 
   const lineaSel = parseInt(btn.dataset.linea, 10);
-
   const item = {
     id: currentInfoReg.id || crypto.randomUUID(),
     posicion: currentInfoReg.posicion,
     rack: currentInfoReg.rack,
-    linea: lineaSel,                    // línea de salida elegida (1–3)
+    linea: lineaSel,
     refId: currentInfoReg.id,
     operador: currentInfoReg.operador,
     empleado: currentInfoReg.registradoPorId,
@@ -389,16 +402,18 @@ infoActions.addEventListener("click", e=>{
   if (!exists) arr.push(item);
   saveJSON(LS_KEYS.RETIRAR, retirar);
 
-  // 2) Guardar en histórico para vista Controlistas
-  const histExists = retirarHist.some(x =>
+  // 2) Guardar histórico Controlistas
+  const hist = loadJSON(LS_KEYS.RETIRAR_HIST, []);
+  const histExists = hist.some(x =>
     x.posicion === item.posicion && x.rack === item.rack && x.creadoEn === item.creadoEn && x.linea === item.linea
   );
   if (!histExists) {
-    retirarHist.push(item);
-    saveJSON(LS_KEYS.RETIRAR_HIST, retirarHist);
+    hist.push(item);
+    saveJSON(LS_KEYS.RETIRAR_HIST, hist);
+    retirarHist = hist;
   }
 
-  // 3) Quitar de Producción si venía de ahí
+  // 3) Quitar de Producción
   produccion = produccion.filter(x => x.id !== currentInfoReg.id);
   saveJSON(LS_KEYS.PRODUCCION, produccion);
 
@@ -408,79 +423,96 @@ infoActions.addEventListener("click", e=>{
   renderAll();
 });
 
-// Posiciones (modal editor)
+// ====== Editores: Posiciones / Racks ======
 let currentPosKey = null;
 function openPosEditor(key){
   currentPosKey = key;
   posTitle.textContent = `Editar posición ${key}`;
-  const st = (posStatus[key] = posStatus[key] || {});
-  posAct.checked = !!st.actuador;
-  posTar.checked = !!st.tarjeta;
-  posAbr.checked = !!st.abrazaderas;
-  posCab.checked = !!st.cable_bajada;
-  posResp.value = st.responsable || "";
-  posObs.value = st.observaciones || "";
+
+  // estado actual (desde en_uso y status detalle)
+  const enUsoActual = !!enUso.posiciones?.[key];
+  posEstado.value = enUsoActual ? "ocupada" : "disponible";
+
+  const st = posStatus[key] || {};
+  posObs.value = st.obs || "";
+  posActuador.checked = !!st.actuador;
+  posTarjeta.checked  = !!st.tarjeta;
+  posAbraz.checked    = !!st.abrazaderas;
+  posCable.checked    = !!st.cable_bajada;
+
   modalPos.showModal();
 }
 formPos.addEventListener("click", (e)=>{
   const btn = e.target;
   if (!(btn instanceof HTMLButtonElement)) return;
+
   if (btn.value === "save" && currentPosKey){
+    // estado -> en_uso
+    const ocupado = posEstado.value === "ocupada";
+    enUso.posiciones = enUso.posiciones || {};
+    if (ocupado) enUso.posiciones[currentPosKey] = true;
+    else delete enUso.posiciones[currentPosKey];
+    saveJSON(LS_KEYS.EN_USO, enUso);
+
+    // detalle + observaciones
     posStatus[currentPosKey] = {
-      actuador: !!posAct.checked,
-      tarjeta: !!posTar.checked,
-      abrazaderas: !!posAbr.checked,
-      cable_bajada: !!posCab.checked,
-      responsable: posResp.value.trim() || null,
-      observaciones: posObs.value.trim() || null
+      estado: ocupado ? "ocupada" : "disponible",
+      actuador: !!posActuador.checked,
+      tarjeta: !!posTarjeta.checked,
+      abrazaderas: !!posAbraz.checked,
+      cable_bajada: !!posCable.checked,
+      obs: posObs.value.trim() || ""
     };
     saveJSON(LS_KEYS.STATUS_POS_DET, posStatus);
+
     modalPos.close();
+    renderCatalogos();
   }
   if (btn.value === "cancel"){ modalPos.close(); }
 });
 
-// Racks (modal editor)
 let currentRackKey = null;
 function openRackEditor(key){
   currentRackKey = key;
   rackTitle.textContent = `Editar ${key}`;
-  const st = (rackStatus[key] = rackStatus[key] || {});
-  rkSup.checked = !!st.soporte_dren;
-  rkPor.checked = !!st.porta_manguera;
-  rkTin.checked = !!st.tina;
-  rkResp.value = st.responsable || "";
-  rkObs.value = st.observaciones || "";
+
+  const enUsoActual = !!enUso.racks?.[key];
+  rkEstado.value = enUsoActual ? "ocupado" : "disponible";
+
+  const st = rackStatus[key] || {};
+  rkObs.value = st.obs || "";
+  rkSoporte.checked = !!st.soporte_dren;
+  rkPorta.checked   = !!st.porta_manguera;
+  rkTina.checked    = !!st.tina;
+
   modalRack.showModal();
 }
 formRack.addEventListener("click", (e)=>{
   const btn = e.target;
   if (!(btn instanceof HTMLButtonElement)) return;
+
   if (btn.value === "save" && currentRackKey){
+    const ocupado = rkEstado.value === "ocupado";
+    enUso.racks = enUso.racks || {};
+    if (ocupado) enUso.racks[currentRackKey] = true;
+    else delete enUso.racks[currentRackKey];
+    saveJSON(LS_KEYS.EN_USO, enUso);
+
     rackStatus[currentRackKey] = {
-      soporte_dren: !!rkSup.checked,
-      porta_manguera: !!rkPor.checked,
-      tina: !!rkTin.checked,
-      responsable: rkResp.value.trim() || null,
-      observaciones: rkObs.value.trim() || null
+      estado: ocupado ? "ocupado" : "disponible",
+      soporte_dren: !!rkSoporte.checked,
+      porta_manguera: !!rkPorta.checked,
+      tina: !!rkTina.checked,
+      obs: rkObs.value.trim() || ""
     };
     saveJSON(LS_KEYS.STATUS_RACKS_DET, rackStatus);
+
     modalRack.close();
+    renderCatalogos();
   }
   if (btn.value === "cancel"){ modalRack.close(); }
 });
 
-function updateProdTotal(){
-  const el = $("#prodTotal");
-  if (!el) return;
-  const total = (produccion || []).reduce((sum, r) => {
-    const n = parseFloat(r?.cantidad);
-    return sum + (isNaN(n) ? 0 : n);
-  }, 0);
-  el.textContent = `Total: ${total}`;
-}
-
 // ====== Inicial ======
 renderAll();
-// refresco por si Patineros mueve estado en otros equipos
 setInterval(renderAll, 4000);
