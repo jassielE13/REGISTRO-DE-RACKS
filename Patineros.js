@@ -10,8 +10,19 @@ const LS_KEYS = {
   STATUS_RACKS_DET: "status_racks_detalle"     // { "Rack001": {soporte_dren:true/false, porta_manguera:true/false, tina:true/false}, ... }
 };
 
+// Estado de pestañas (persistencia)
+const TAB_KEY = "patineros_tabs_state"; // { retirar:'sal1|sal2|sal3', salidas:'salout1|salout2|salout3' }
+
 function loadJSON(key, fallback) { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
 function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+// Guardado defensivo (cuota llena / privacidad / etc.)
+function safeSave(key, value){
+  try { saveJSON(key, value); }
+  catch (e) {
+    console.error("Storage lleno o inaccesible", e);
+    alert("No se pudo guardar datos locales (almacenamiento lleno o bloqueado). Libera espacio y reintenta.");
+  }
+}
 
 // ====== Usuario actual (del Login) ======
 const CURRENT_USER = loadJSON("CURRENT_USER", null);
@@ -51,7 +62,7 @@ function reconcileEnUso() {
 
   enUso.posiciones = nuevo.posiciones;
   enUso.racks = nuevo.racks;
-  saveJSON(LS_KEYS.EN_USO, enUso);
+  safeSave(LS_KEYS.EN_USO, enUso);
 }
 // Ejecutar reparación al cargar
 reconcileEnUso();
@@ -143,7 +154,7 @@ function loadLastByLine(){
   return loadJSON(LS_KEYS.FORM_LAST_BY_LINE, {1:null,2:null,3:null,4:null});
 }
 function saveLastByLine(map){
-  saveJSON(LS_KEYS.FORM_LAST_BY_LINE, map);
+  safeSave(LS_KEYS.FORM_LAST_BY_LINE, map);
 }
 function prefillFromLast(linea){
   const map = loadLastByLine();
@@ -156,6 +167,25 @@ function prefillFromLast(linea){
   inputNumRack.value = last.numRack || "";
   inputPosRack.value = last.posRack || "";
 }
+
+// Persistencia de pestañas
+function loadTabs(){ return loadJSON(TAB_KEY, {retirar:'sal1', salidas:'salout1'}); }
+function saveTabs(v){ safeSave(TAB_KEY, v); }
+(function restoreTabs(){
+  const st = loadTabs();
+  document.getElementById(st.retirar)?.setAttribute("checked", "checked");
+  document.getElementById(st.salidas)?.setAttribute("checked", "checked");
+})();
+["sal1","sal2","sal3"].forEach(id=>{
+  document.getElementById(id)?.addEventListener("change", ()=>{
+    const st = loadTabs(); st.retirar = id; saveTabs(st);
+  });
+});
+["salout1","salout2","salout3"].forEach(id=>{
+  document.getElementById(id)?.addEventListener("change", ()=>{
+    const st = loadTabs(); st.salidas = id; saveTabs(st);
+  });
+});
 
 // Cuando cambie la línea, precargar su último formulario
 document.querySelectorAll('input[name="linea"]').forEach(r=>{
@@ -184,6 +214,14 @@ inputCodigoSeco.addEventListener("input", () => {
 inputNumRack.addEventListener("blur", () => { inputNumRack.value = autoformatRack(inputNumRack.value); });
 inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos(inputPosRack.value); });
 
+// Normalización inmediata mientras se escribe/pega desde QR
+[inputNumRack, inputPosRack].forEach(inp=>{
+  inp.addEventListener("input", ()=>{
+    const v = inp === inputNumRack ? autoformatRack(inp.value) : autoformatPos(inp.value);
+    if (/^Rack\d{0,3}$/.test(v) || /^P\d{0,3}$/.test(v)) inp.value = v;
+  });
+});
+
 // ====== Guardar Registro ======
 form.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -192,7 +230,7 @@ form.addEventListener("submit", (e) => {
   const operador = inputOperador.value.trim();
   const codigoSeco = inputCodigoSeco.value.trim();
   const firmando = inputFirmando.value.trim();
-  const cantidad = parseInt(inputCantidad.value || "0",10);
+  const cantidad = Number.parseInt(inputCantidad.value || "0", 10);
 
   // Normaliza formatos clave ANTES de validar/consultar enUso
   let rack = autoformatRack(inputNumRack.value);
@@ -201,8 +239,13 @@ form.addEventListener("submit", (e) => {
   inputPosRack.value = posicion;
 
   // Validaciones básicas
-  if (!linea || !operador || !codigoSeco || !cantidad || !rack || !posicion) {
+  if (!linea || !operador || !codigoSeco || !rack || !posicion) {
     alert("Completa todos los campos del registro.");
+    return;
+  }
+  if (!Number.isInteger(cantidad) || cantidad <= 0) {
+    alert("La cantidad debe ser un entero mayor que 0.");
+    inputCantidad.focus();
     return;
   }
   if (!RX_PATTERN.test(rack)) { alert('El número de rack debe tener formato "Rack###", ej. "Rack001".'); inputNumRack.focus(); return; }
@@ -238,12 +281,12 @@ form.addEventListener("submit", (e) => {
   };
   const controlistasPend = loadJSON(LS_KEYS.CONTROLISTAS, []);
   controlistasPend.push(nuevo);
-  saveJSON(LS_KEYS.CONTROLISTAS, controlistasPend);
+  safeSave(LS_KEYS.CONTROLISTAS, controlistasPend);
 
   // 3) Marcar EN USO de inmediato
   enUso.posiciones[posicion] = true;
   enUso.racks[rack] = true;
-  saveJSON(LS_KEYS.EN_USO, enUso);
+  safeSave(LS_KEYS.EN_USO, enUso);
 
   // 4) Añadir a RETIRAR
   (retirarListas[linea] = retirarListas[linea] || []).push({
@@ -251,7 +294,7 @@ form.addEventListener("submit", (e) => {
     operador: nuevo.operador, empleado: nuevo.registradoPorId,
     codigoSeco, cantidad, creadoEn: nuevo.creadoEn, registradoPorNombre: nuevo.registradoPorNombre
   });
-  saveJSON(LS_KEYS.RETIRAR, retirarListas);
+  safeSave(LS_KEYS.RETIRAR, retirarListas);
 
   // 5) Dejar SOLO rack y posición en blanco en la UI actual
   inputNumRack.value = "";
@@ -263,6 +306,9 @@ form.addEventListener("submit", (e) => {
 
 // ====== Retirar -> mover a Salidas ======
 function handleRetirar(item, linea) {
+  // Confirmación ligera (evita toques accidentales)
+  if (!confirm(`¿Mover a SALIDAS?\nLínea ${linea} • ${item.posicion} • ${item.rack}`)) return;
+
   const registro = {
     id: crypto.randomUUID(),
     linea,
@@ -284,13 +330,13 @@ function handleRetirar(item, linea) {
   const yaExiste = (salidasListas[linea] || []).some(r => r.rack === item.rack && r.posicion === item.posicion && !r.salida);
   if (!yaExiste) {
     (salidasListas[linea] = salidasListas[linea] || []).push(registro);
-    saveJSON(LS_KEYS.SALIDAS, salidasListas);
+    safeSave(LS_KEYS.SALIDAS, salidasListas);
   }
 
   // quitar de retirar
   const arr = retirarListas[linea] || [];
   const idx = arr.findIndex(x => x.posicion === item.posicion && x.rack === item.rack);
-  if (idx >= 0) { arr.splice(idx,1); retirarListas[linea] = arr; saveJSON(LS_KEYS.RETIRAR, retirarListas); }
+  if (idx >= 0) { arr.splice(idx,1); retirarListas[linea] = arr; safeSave(LS_KEYS.RETIRAR, retirarListas); }
 
   renderAll();
 }
@@ -343,6 +389,7 @@ function openEntradaModal(reg) {
   inputConfirmRack.value = "";
 
   modalEntrada.showModal();
+  setTimeout(()=> inputPatineroEntrada?.focus(), 50);
 }
 
 // Delegación: botones "Línea 1/2/3/4"
@@ -407,7 +454,7 @@ formEntrada.addEventListener("click", (e) => {
       at: nowISO()
     };
     currentSalida.entradaGuardadaEn = Date.now();
-    saveJSON(LS_KEYS.SALIDAS, salidasListas);
+    safeSave(LS_KEYS.SALIDAS, salidasListas);
 
     modalEntrada.close();
     renderAll();
@@ -421,6 +468,11 @@ function canShowDarSalida(reg) {
   if (!reg.entradaGuardadaEn) return false;
   return (Date.now() - reg.entradaGuardadaEn) >= 60 * 1000; // 1 min
 }
+function secondsToEnable(reg){
+  if (!reg.entradaGuardadaEn) return 60;
+  const diff = 60 - Math.floor((Date.now() - reg.entradaGuardadaEn)/1000);
+  return Math.max(0, diff);
+}
 
 // Abrir modal de SALIDA
 function openSalidaModal(reg) {
@@ -428,6 +480,7 @@ function openSalidaModal(reg) {
   salidaResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
   inputValidacionPatinero.value = CURRENT_USER?.name || "";
   modalSalida.showModal();
+  setTimeout(()=> inputValidacionPatinero?.focus(), 50);
 }
 
 // Guardar SALIDA
@@ -446,13 +499,13 @@ formSalida.addEventListener("click", (e) => {
     // liberar enUso
     delete enUso.posiciones[currentSalida.posicion];
     delete enUso.racks[currentSalida.rack];
-    saveJSON(LS_KEYS.EN_USO, enUso);
+    safeSave(LS_KEYS.EN_USO, enUso);
 
     // eliminar el registro de la lista de salidas
     const lista = salidasListas[currentSalida.linea] || [];
     const idx = lista.findIndex(x => x.id === currentSalida.id);
     if (idx >= 0) { lista.splice(idx,1); salidasListas[currentSalida.linea] = lista; }
-    saveJSON(LS_KEYS.SALIDAS, salidasListas);
+    safeSave(LS_KEYS.SALIDAS, salidasListas);
 
     modalSalida.close();
     renderAll();
@@ -516,15 +569,17 @@ function renderSalidas() {
             tr.children[2].appendChild(btnEntrada);
           }
         } else {
-          // Es el activo de la línea: muestra salida (verde si habilitado)
+          // Es el activo de la línea: muestra salida (verde si habilitado) o cuenta regresiva
           const btnSalida = document.createElement("button");
           btnSalida.type = "button";
-          btnSalida.textContent = "Dar salida";
-          if (canShowDarSalida(reg)) {
+          const left = secondsToEnable(reg);
+          if (left === 0) {
+            btnSalida.textContent = "Dar salida";
             btnSalida.className = "accent"; // verde
             btnSalida.disabled = false;
             btnSalida.addEventListener("click", () => openSalidaModal(reg));
           } else {
+            btnSalida.textContent = `Dar salida (${left}s)`;
             btnSalida.className = "primary";
             btnSalida.disabled = true;
           }
@@ -595,16 +650,30 @@ function renderRacks() {
   }
 }
 
+// Contadores por línea en encabezados
+function updateCountersUI(){
+  const hRet = document.querySelector('#retirar .panel-header h2');
+  const hSal = document.querySelector('#salidas .panel-header h2');
+
+  const r1=(retirarListas[1]||[]).length, r2=(retirarListas[2]||[]).length, r3=(retirarListas[3]||[]).length;
+  const s1=(salidasListas[1]||[]).length, s2=(salidasListas[2]||[]).length, s3=(salidasListas[3]||[]).length;
+
+  if (hRet) hRet.textContent = `Retirar Racks — L1:${r1} • L2:${r2} • L3:${r3}`;
+  if (hSal) hSal.textContent = `Salidas — L1:${s1} • L2:${s2} • L3:${s3}`;
+}
+
 function renderAll() {
   renderRetirar();
   renderSalidas();
   renderPosiciones();
   renderRacks();
+  updateCountersUI();
 }
 
-// Render inicial + refresco periódico (para habilitar salida al minuto)
+// Render inicial + refresco periódico
 renderAll();
-setInterval(() => renderSalidas(), 5000);
+// Refresco ágil de salidas para la cuenta regresiva
+setInterval(() => renderSalidas(), 1000);
 
 // Comentarios (placeholder)
 document.getElementById("formComentario")?.addEventListener("submit", (e)=>{
