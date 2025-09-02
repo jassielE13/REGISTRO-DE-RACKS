@@ -83,6 +83,19 @@ async function stopQrScanner(){
   }
 }
 
+// Registro: botones "Escanear QR" junto a cada input
+const btnScanSeco = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
+btnScanSeco?.addEventListener("click", () => openQrScanner(inputCodigoSeco, 'text'));
+
+const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
+btnScanNumRack?.addEventListener("click", () => openQrScanner(inputNumRack, 'rack'));
+
+const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
+btnScanPosRack?.addEventListener("click", () => openQrScanner(inputPosRack, 'pos'));
+
+// Modal de ENTRADA: botón Escanear QR para confirmar rack
+btnScanRack?.addEventListener("click", () => openQrScanner(inputConfirmRack, 'rack'));
+
 // Botón cancelar del modal
 document.getElementById("btnQrCancel")?.addEventListener("click", () => { stopQrScanner(); });
 
@@ -763,4 +776,5 @@ document.getElementById("formComentario")?.addEventListener("submit", (e)=>{
   e.target.reset();
   alert("Comentario enviado.");
 });
+
 
