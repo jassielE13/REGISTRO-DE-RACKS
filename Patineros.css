@@ -285,3 +285,11 @@ button.accent:hover { filter: brightness(1.05); }
     border-radius: 0; padding: 1rem;
   }
 }
+
+/* Resalte del botón de línea seleccionado en modal de Entrada */
+#confirmLineaBtns button.active{
+  border-color: var(--brand-2);
+  background: color-mix(in oklab, var(--brand-2) 22%, var(--bg));
+  color: var(--brand-2);
+  box-shadow: inset 0 0 0 2px var(--brand-2);
+}
