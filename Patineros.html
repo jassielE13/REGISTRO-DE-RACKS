@@ -13,6 +13,23 @@
     }
   </script>
   </head>
+  <!-- Librería del lector QR -->
+<script src="https://unpkg.com/html5-qrcode@2.3.10"></script>
+
+<!-- Modal del lector QR -->
+<dialog id="modalQR" class="modal">
+  <div class="modal-content" style="max-width: min(92vw, 540px);">
+    <h3>Escanear código</h3>
+    <div id="qrRegion" style="width:100%; max-width:480px; margin:.75rem auto;"></div>
+    <small id="qrHelp" style="display:block; opacity:.75; margin:.25rem 0 .75rem;">
+      Apunta la cámara al código. Se cerrará automáticamente al reconocerlo.
+    </small>
+    <div class="actions">
+      <button class="secondary" id="btnQrCancel" type="button">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
   <body>
     <!-- Barra superior -->
     <header class="topbar">
@@ -396,3 +413,4 @@
     <script src="Patineros.js"></script>
   </body>
 </html>
+
