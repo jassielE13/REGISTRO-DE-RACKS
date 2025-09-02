@@ -10,6 +10,82 @@ const LS_KEYS = {
   STATUS_RACKS_DET: "status_racks_detalle"     // { "Rack001": {soporte_dren:true/false, porta_manguera:true/false, tina:true/false}, ... }
 };
 
+// ====== QR Reader (html5-qrcode) ======
+let qrModal = null, qrRegion = null, qrReader = null, qrTargetInput = null;
+let qrCurrentCamId = null;
+
+function ensureQrDomRefs(){
+  if (!qrModal)    qrModal  = document.getElementById("modalQR");
+  if (!qrRegion)   qrRegion = document.getElementById("qrRegion");
+}
+
+async function pickBestCamera(cameras){
+  if (!cameras || !cameras.length) throw new Error("No hay cámaras disponibles");
+  // Preferir trasera / environment
+  const back = cameras.find(c => /back|trasera|environment/i.test(c.label));
+  return (back || cameras[0]).id;
+}
+
+// Abre el lector, y al leer escribe en el input destino.
+// mode: 'text' (cualquier cosa), 'rack' (formatea Rack###) o 'pos' (formatea P###)
+async function openQrScanner(targetInput, mode='text'){
+  ensureQrDomRefs();
+  if (!window.Html5Qrcode) { alert("No se encontró el lector QR."); return; }
+
+  qrTargetInput = targetInput;
+  qrModal.showModal();
+
+  // Crear instancia si no existe
+  if (!qrReader) qrReader = new Html5Qrcode("qrRegion", /*verbose*/false);
+
+  try {
+    const cams = await Html5Qrcode.getCameras();
+    qrCurrentCamId = await pickBestCamera(cams);
+
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+      aspectRatio: 1.777
+    };
+
+    const onSuccess = (decodedText) => {
+      let v = (decodedText || "").trim();
+      if (mode === 'rack') v = autoformatRack(v);
+      if (mode === 'pos')  v = autoformatPos(v);
+      if (qrTargetInput) {
+        qrTargetInput.value = v;
+        // Disparar eventos por si hay lógicas (ej. autocompletar firmando)
+        qrTargetInput.dispatchEvent(new Event("input"));
+        qrTargetInput.dispatchEvent(new Event("blur"));
+      }
+      stopQrScanner(); // cerrar al primer éxito
+    };
+
+    const onError = (_err) => { /* ignorar lecturas fallidas para no saturar */ };
+
+    await qrReader.start({ deviceId: { exact: qrCurrentCamId } }, config, onSuccess, onError);
+  } catch (err) {
+    console.error(err);
+    alert("No se pudo iniciar la cámara. Revisa permisos/HTTPS.");
+    try { await stopQrScanner(); } catch {}
+  }
+}
+
+async function stopQrScanner(){
+  try {
+    if (qrReader && qrReader._isScanning) {
+      await qrReader.stop();
+      await qrReader.clear();
+    }
+  } finally {
+    if (qrModal?.open) qrModal.close();
+    qrTargetInput = null;
+  }
+}
+
+// Botón cancelar del modal
+document.getElementById("btnQrCancel")?.addEventListener("click", () => { stopQrScanner(); });
+
 // Estado de pestañas (persistencia)
 const TAB_KEY = "patineros_tabs_state"; // { retirar:'sal1|sal2|sal3', salidas:'salout1|salout2|salout3' }
 
@@ -687,3 +763,4 @@ document.getElementById("formComentario")?.addEventListener("submit", (e)=>{
   e.target.reset();
   alert("Comentario enviado.");
 });
+
