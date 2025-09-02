@@ -8,28 +8,11 @@
 
     <!-- Forzar Home (#registro) si se entra sin hash -->
     <script>
-    if (!location.hash) {
-      location.replace(location.pathname + '#registro');
-    }
-  </script>
+      if (!location.hash) {
+        location.replace(location.pathname + '#registro');
+      }
+    </script>
   </head>
-  <!-- Librería del lector QR -->
-<script src="https://unpkg.com/html5-qrcode@2.3.10"></script>
-
-<!-- Modal del lector QR -->
-<dialog id="modalQR" class="modal">
-  <div class="modal-content" style="max-width: min(92vw, 540px);">
-    <h3>Escanear código</h3>
-    <div id="qrRegion" style="width:100%; max-width:480px; margin:.75rem auto;"></div>
-    <small id="qrHelp" style="display:block; opacity:.75; margin:.25rem 0 .75rem;">
-      Apunta la cámara al código. Se cerrará automáticamente al reconocerlo.
-    </small>
-    <div class="actions">
-      <button class="secondary" id="btnQrCancel" type="button">Cancelar</button>
-    </div>
-  </div>
-</dialog>
-
   <body>
     <!-- Barra superior -->
     <header class="topbar">
@@ -41,13 +24,11 @@
         <a href="#racks">Racks</a>
         <a href="#comentarios">Comentarios</a>
       </nav>
-      <!-- Para GitHub Pages, regresar al inicio del repo -->
       <a href="./index.html" class="logout">Salir</a>
     </header>
 
     <main class="container">
-
-      <!-- ===== 1) REGISTRO (HOME) ===== -->
+      <!-- ===== 1) REGISTRO ===== -->
       <section id="registro" class="panel">
         <header class="panel-header">
           <h2>Registro de Racks</h2>
@@ -73,8 +54,7 @@
           <div class="row">
             <div class="field">
               <label for="operador">Nombre del operador</label>
-              <input id="operador" type="text"
-                placeholder="Escribe el nombre" required />
+              <input id="operador" type="text" placeholder="Escribe el nombre" required />
             </div>
           </div>
 
@@ -82,16 +62,12 @@
             <div class="field">
               <label for="codigoSeco">Código de seco</label>
               <div class="with-actions">
-                <input id="codigoSeco" type="text"
-                  placeholder="Escribe o escanea el código" />
-                <button type="button" class="ghost"
-                  aria-label="Escanear código QR">Escanear QR</button>
+                <input id="codigoSeco" type="text" placeholder="Escribe o escanea el código" />
+                <button type="button" class="ghost">Escanear QR</button>
               </div>
-              <!-- Vista solo lectura -->
               <div class="readonly-block" aria-live="polite">
                 <label>Firmando el acumulador</label>
-                <input id="firmandoAcum" type="text"
-                  value="— Se autocompleta al validar —" readonly />
+                <input id="firmandoAcum" type="text" value="— Se autocompleta al validar —" readonly />
               </div>
             </div>
           </div>
@@ -103,14 +79,12 @@
             </div>
           </div>
 
-          <!-- Numero de rack DEBAJO de cantidad -->
           <div class="row">
             <div class="field">
               <label for="numRack">Número de rack </label>
               <div class="with-actions">
                 <input id="numRack" type="text" placeholder="Ej. Rack001" />
-                <button type="button" class="ghost"
-                  aria-label="Escanear QR de rack">Escanear QR</button>
+                <button type="button" class="ghost">Escanear QR</button>
               </div>
             </div>
           </div>
@@ -120,8 +94,7 @@
               <label for="posRack">Posición de rack </label>
               <div class="with-actions">
                 <input id="posRack" type="text" placeholder="Ej. P002" />
-                <button type="button" class="ghost"
-                  aria-label="Escanear QR de posición">Escanear QR</button>
+                <button type="button" class="ghost">Escanear QR</button>
               </div>
             </div>
           </div>
@@ -133,52 +106,37 @@
         </form>
       </section>
 
-      <!-- ===== 2) RETIRAR RACKS ===== -->
+      <!-- ===== 2) RETIRAR ===== -->
       <section id="retirar" class="panel">
-        <header class="panel-header">
-          <h2>Retirar Racks</h2>
-        </header>
-
+        <header class="panel-header"><h2>Retirar Racks</h2></header>
         <div class="tabs">
           <input type="radio" id="sal1" name="salidas" checked />
           <label for="sal1">Línea salida 1</label>
-
           <input type="radio" id="sal2" name="salidas" />
           <label for="sal2">Línea salida 2</label>
-
           <input type="radio" id="sal3" name="salidas" />
           <label for="sal3">Línea salida 3</label>
-
           <div class="tab-content">
-            <!-- L1 -->
             <div class="tab-pane">
               <div class="scroll">
                 <table class="table" id="tablaRetirar1">
-                  <thead>
-                    <tr><th>Posición</th><th>Núm. Rack</th><th>Acción</th></tr>
-                  </thead>
-                  <tbody><!-- items dinámicos --></tbody>
-                </table>
-              </div>
-            </div>
-            <!-- L2 -->
-            <div class="tab-pane">
-              <div class="scroll">
-                <table class="table" id="tablaRetirar2">
-                  <thead>
-                    <tr><th>Posición</th><th>Núm. Rack</th><th>Acción</th></tr>
-                  </thead>
+                  <thead><tr><th>Posición</th><th>Núm. Rack</th><th>Acción</th></tr></thead>
                   <tbody></tbody>
                 </table>
               </div>
             </div>
-            <!-- L3 -->
+            <div class="tab-pane">
+              <div class="scroll">
+                <table class="table" id="tablaRetirar2">
+                  <thead><tr><th>Posición</th><th>Núm. Rack</th><th>Acción</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
             <div class="tab-pane">
               <div class="scroll">
                 <table class="table" id="tablaRetirar3">
-                  <thead>
-                    <tr><th>Posición</th><th>Núm. Rack</th><th>Acción</th></tr>
-                  </thead>
+                  <thead><tr><th>Posición</th><th>Núm. Rack</th><th>Acción</th></tr></thead>
                   <tbody></tbody>
                 </table>
               </div>
@@ -189,228 +147,86 @@
 
       <!-- ===== 3) SALIDAS ===== -->
       <section id="salidas" class="panel">
-        <header class="panel-header">
-          <h2>Salidas</h2>
-        </header>
-
+        <header class="panel-header"><h2>Salidas</h2></header>
         <div class="tabs">
           <input type="radio" id="salout1" name="salidasout" checked />
           <label for="salout1">Línea salida 1</label>
-
           <input type="radio" id="salout2" name="salidasout" />
           <label for="salout2">Línea salida 2</label>
-
           <input type="radio" id="salout3" name="salidasout" />
           <label for="salout3">Línea salida 3</label>
-
           <div class="tab-content">
-            <div class="tab-pane">
-              <div class="scroll">
-                <table class="table" id="tablaSalidas1">
-                  <thead>
-                    <tr><th>Posición</th><th>Núm.
-                        Rack</th><th>Entrada</th><th>Salida</th></tr>
-                  </thead>
-                  <tbody><!-- dinámico --></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="tab-pane">
-              <div class="scroll">
-                <table class="table" id="tablaSalidas2">
-                  <thead>
-                    <tr><th>Posición</th><th>Núm.
-                        Rack</th><th>Entrada</th><th>Salida</th></tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="tab-pane">
-              <div class="scroll">
-                <table class="table" id="tablaSalidas3">
-                  <thead>
-                    <tr><th>Posición</th><th>Núm.
-                        Rack</th><th>Entrada</th><th>Salida</th></tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
+            <div class="tab-pane"><div class="scroll"><table class="table" id="tablaSalidas1"><thead><tr><th>Posición</th><th>Núm. Rack</th><th>Entrada</th><th>Salida</th></tr></thead><tbody></tbody></table></div></div>
+            <div class="tab-pane"><div class="scroll"><table class="table" id="tablaSalidas2"><thead><tr><th>Posición</th><th>Núm. Rack</th><th>Entrada</th><th>Salida</th></tr></thead><tbody></tbody></table></div></div>
+            <div class="tab-pane"><div class="scroll"><table class="table" id="tablaSalidas3"><thead><tr><th>Posición</th><th>Núm. Rack</th><th>Entrada</th><th>Salida</th></tr></thead><tbody></tbody></table></div></div>
           </div>
         </div>
-        <p class="hint">Haz clic en cualquier fila para ver la información
-          completa del registro.</p>
+        <p class="hint">Haz clic en cualquier fila para ver la información completa del registro.</p>
       </section>
 
-      <!-- ===== 4) POSICIONES DISPONIBLES ===== -->
+      <!-- ===== 4) POSICIONES ===== -->
       <section id="posiciones" class="panel">
-        <header class="panel-header">
-          <h2>Posiciones Disponibles</h2>
-        </header>
-
-        <div class="scroll">
-          <table class="table" id="tablaPosiciones">
-            <thead>
-              <tr>
-                <th>Posición</th>
-                <th>Estado</th>
-                <th>Actuador</th>
-                <th>Tarjeta</th>
-                <th>Abrazaderas manifold</th>
-                <th>Cable bajada</th>
-                <th>Observaciones</th>
-              </tr>
-            </thead>
-            <tbody><!-- dinámico --></tbody>
-          </table>
-
-        </div>
+        <header class="panel-header"><h2>Posiciones Disponibles</h2></header>
+        <div class="scroll"><table class="table" id="tablaPosiciones"><thead><tr><th>Posición</th><th>Estado</th><th>Actuador</th><th>Tarjeta</th><th>Abrazaderas manifold</th><th>Cable bajada</th><th>Observaciones</th></tr></thead><tbody></tbody></table></div>
       </section>
 
-      <!-- ===== 5) RACKS DISPONIBLES ===== -->
+      <!-- ===== 5) RACKS ===== -->
       <section id="racks" class="panel">
-        <header class="panel-header">
-          <h2>Racks Disponibles</h2>
-        </header>
-
-        <div class="scroll">
-          <table class="table" id="tablaRacks">
-            <thead>
-              <tr>
-                <th>Número Rack</th>
-                <th>Estado</th>
-                <th>Soporte de dren</th>
-                <th>Porta manguera</th>
-                <th>Tina</th>
-              </tr>
-            </thead>
-            <tbody><!-- dinámico --></tbody>
-          </table>
-        </div>
+        <header class="panel-header"><h2>Racks Disponibles</h2></header>
+        <div class="scroll"><table class="table" id="tablaRacks"><thead><tr><th>Número Rack</th><th>Estado</th><th>Soporte de dren</th><th>Porta manguera</th><th>Tina</th></tr></thead><tbody></tbody></table></div>
       </section>
 
       <!-- ===== 6) COMENTARIOS ===== -->
       <section id="comentarios" class="panel">
-        <header class="panel-header">
-          <h2>Comentarios</h2>
-        </header>
-
+        <header class="panel-header"><h2>Comentarios</h2></header>
         <form id="formComentario" class="form">
-          <div class="row">
-            <div class="field">
-              <label for="comentario">Escribe tu comentario</label>
-              <textarea id="comentario" rows="5"
-                placeholder="Describe el hallazgo, mejora o situación…"></textarea>
-            </div>
-          </div>
-          <div class="actions">
-            <button type="submit" class="primary">Enviar comentario</button>
-            <button type="reset" class="secondary">Limpiar</button>
-          </div>
+          <div class="row"><div class="field"><label for="comentario">Escribe tu comentario</label><textarea id="comentario" rows="5" placeholder="Describe el hallazgo, mejora o situación…"></textarea></div></div>
+          <div class="actions"><button type="submit" class="primary">Enviar comentario</button><button type="reset" class="secondary">Limpiar</button></div>
         </form>
       </section>
     </main>
 
-    <footer class="foot">
-      <small>© 2025 • Área Patineros</small>
-    </footer>
+    <footer class="foot"><small>© 2025 • Área Patineros</small></footer>
 
-    <!-- Modales -->
+    <!-- ===== Modales ===== -->
     <dialog id="modalEntrada" class="modal">
       <form method="dialog" class="modal-content" id="formEntrada">
         <h3>Dar entrada al rack</h3>
-
-        <div class="row">
-          <div class="field">
-            <label>Resumen</label>
-            <div id="entradaResumen" class="resume"></div>
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="field">
-            <label for="patineroEntrada">Patinero que da entrada</label>
-            <input id="patineroEntrada" type="text" required />
-          </div>
-        </div>
-
-        <!-- Confirmación de línea con botones 1–4 -->
-        <div class="row">
-          <div class="field">
-            <label>Selecciona la línea correcta</label>
-            <div id="confirmLineaBtns" class="line-buttons">
-              <button type="button" class="ghost" data-linea="1">Línea
-                1</button>
-              <button type="button" class="ghost" data-linea="2">Línea
-                2</button>
-              <button type="button" class="ghost" data-linea="3">Línea
-                3</button>
-              <button type="button" class="ghost" data-linea="4">Línea
-                4</button>
-            </div>
-            <input type="hidden" id="confirmLineaValue" />
-            <small>Debes seleccionar la línea que corresponde al
-              registro.</small>
-          </div>
-        </div>
-
-        <!-- CONFIRMACIÓN DE RACK + QR -->
-        <div class="row">
-          <div class="field">
-            <label for="confirmRack">Confirmación de Rack <small>(debe
-                coincidir; ej. Rack001)</small></label>
-            <div class="with-actions">
-              <input id="confirmRack" type="text" placeholder="Ej. Rack001"
-                required />
-              <button type="button" id="btnScanRack" class="ghost"
-                aria-label="Escanear QR de rack">Escanear QR</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="actions">
-          <button class="primary" value="save">Guardar</button>
-          <button class="secondary" value="cancel">Cancelar</button>
-        </div>
+        <div class="row"><div class="field"><label>Resumen</label><div id="entradaResumen" class="resume"></div></div></div>
+        <div class="row"><div class="field"><label for="patineroEntrada">Patinero que da entrada</label><input id="patineroEntrada" type="text" required /></div></div>
+        <div class="row"><div class="field"><label>Selecciona la línea correcta</label><div id="confirmLineaBtns" class="line-buttons"><button type="button" class="ghost" data-linea="1">Línea 1</button><button type="button" class="ghost" data-linea="2">Línea 2</button><button type="button" class="ghost" data-linea="3">Línea 3</button><button type="button" class="ghost" data-linea="4">Línea 4</button></div><input type="hidden" id="confirmLineaValue" /><small>Debes seleccionar la línea que corresponde al registro.</small></div></div>
+        <div class="row"><div class="field"><label for="confirmRack">Confirmación de Rack <small>(ej. Rack001)</small></label><div class="with-actions"><input id="confirmRack" type="text" placeholder="Ej. Rack001" required /><button type="button" id="btnScanRack" class="ghost">Escanear QR</button></div></div></div>
+        <div class="actions"><button class="primary" value="save">Guardar</button><button class="secondary" value="cancel">Cancelar</button></div>
       </form>
     </dialog>
 
     <dialog id="modalSalida" class="modal">
       <form method="dialog" class="modal-content" id="formSalida">
         <h3>Dar salida al rack</h3>
-        <div class="row">
-          <div class="field">
-            <label>Resumen</label>
-            <div id="salidaResumen" class="resume"></div>
-          </div>
-        </div>
-        <div class="row">
-          <div class="field">
-            <label for="validacionPatinero">Validación por patinero</label>
-            <input id="validacionPatinero" type="text" required />
-          </div>
-        </div>
-        <div class="actions">
-          <button class="primary" value="save">Guardar</button>
-          <button class="secondary" value="cancel">Cancelar</button>
-        </div>
+        <div class="row"><div class="field"><label>Resumen</label><div id="salidaResumen" class="resume"></div></div></div>
+        <div class="row"><div class="field"><label for="validacionPatinero">Validación por patinero</label><input id="validacionPatinero" type="text" required /></div></div>
+        <div class="actions"><button class="primary" value="save">Guardar</button><button class="secondary" value="cancel">Cancelar</button></div>
       </form>
     </dialog>
 
-    <!-- Modal de información completa -->
     <dialog id="modalInfo" class="modal">
-      <div class="modal-content">
-        <h3>Detalle del registro</h3>
-        <div id="infoDetalle" class="resume"></div>
-        <div class="actions" style="margin-top:1rem">
-          <button class="secondary"
-            onclick="document.getElementById('modalInfo').close()">Cerrar</button>
-        </div>
+      <div class="modal-content"><h3>Detalle del registro</h3><div id="infoDetalle" class="resume"></div><div class="actions" style="margin-top:1rem"><button class="secondary" onclick="document.getElementById('modalInfo').close()">Cerrar</button></div></div>
+    </dialog>
+
+    <!-- Modal lector QR -->
+    <dialog id="modalQR" class="modal">
+      <div class="modal-content" style="max-width:min(92vw,540px);">
+        <h3>Escanear código</h3>
+        <div id="qrRegion" style="width:100%;max-width:480px;margin:.75rem auto;"></div>
+        <small style="display:block;opacity:.75;margin:.25rem 0 .75rem;">
+          Apunta la cámara al código. Se cerrará automáticamente al reconocerlo.
+        </small>
+        <div class="actions"><button class="secondary" id="btnQrCancel" type="button">Cancelar</button></div>
       </div>
     </dialog>
 
+    <!-- Librería QR + JS -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.10"></script>
     <script src="Patineros.js"></script>
   </body>
 </html>
-
