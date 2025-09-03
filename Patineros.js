@@ -133,3 +133,11 @@ async function stopQrScanner() {
   }
 }
 document.getElementById("btnQrCancel")?.addEventListener("click", () => { stopQrScanner(); });
+
+// === Botones de escaneo QR ===
+document.getElementById("btnScanSeco")   ?.addEventListener("click", () => openQrScanner(document.getElementById("codigoSeco"), 'text'));
+document.getElementById("btnScanNumRack")?.addEventListener("click", () => openQrScanner(document.getElementById("numRack"), 'rack'));
+document.getElementById("btnScanPosRack")?.addEventListener("click", () => openQrScanner(document.getElementById("posRack"), 'pos'));
+document.getElementById("btnScanRack")   ?.addEventListener("click", () => openQrScanner(document.getElementById("confirmRack"), 'rack'));
+
+
