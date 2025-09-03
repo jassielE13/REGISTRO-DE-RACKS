@@ -10,7 +10,6 @@ const LS_KEYS = {
   COMMENTS_READ:"comentarios_leidos",
   EN_USO:       "en_uso",                // {posiciones:{}, racks:{}}
   HIST:         "historial_movimientos"
-  RETIRAR_HIST: "retirar_historial_all"
 
 };
 
@@ -798,4 +797,5 @@ formRack.addEventListener("click", (e)=>{
 // ====== Inicial ======
 renderAll();
 setInterval(renderAll, 4000);
+
 
