@@ -2,268 +2,102 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Controlistas</title>
+  <title>Controlistas • Patineros</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="Controlistas.css" />
-  <script>
-    if (!location.hash) location.replace(location.pathname + '#pendientes');
-  </script>
+  <link rel="stylesheet" href="./Controlistas.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">🎛️ Controlistas</div>
-    <nav class="navbar" id="mainNav">
-      <a href="#pendientes">Pendientes</a>
-      <a href="#produccion">Producción</a>
-      <a href="#retirar">Retirar</a>
-      <a href="#posiciones">Posiciones</a>
-      <a href="#racks">Racks</a>
-      <a href="#comentarios">Comentarios</a>
+    <nav class="navbar">
+      <a href="#l1" id="tabLinkL1" class="active">Línea 1</a>
+      <a href="#l2" id="tabLinkL2">Línea 2</a>
+      <a href="#l3" id="tabLinkL3">Línea 3</a>
+      <!-- Si quieres activar Línea 4, descomenta:
+      <a href="#l4" id="tabLinkL4">Línea 4</a>
+      -->
     </nav>
     <a href="./index.html" class="logout">Salir</a>
   </header>
 
   <main class="container">
-
-    <!-- PENDIENTES -->
-    <section id="pendientes" class="panel">
-      <header class="panel-header"><h2>Pendientes por validar</h2></header>
-
-      <div class="tabs">
-        <input type="radio" id="pendL1" name="pendTabs" checked />
-        <label for="pendL1">Línea 1</label>
-
-        <input type="radio" id="pendL2" name="pendTabs" />
-        <label for="pendL2">Línea 2</label>
-
-        <input type="radio" id="pendL3" name="pendTabs" />
-        <label for="pendL3">Línea 3</label>
-
-        <input type="radio" id="pendL4" name="pendTabs" />
-        <label for="pendL4">Línea 4</label>
-
-        <div class="tab-content">
-          <div class="tab-pane">
-            <table class="table" id="tblPend1">
-              <thead>
-                <tr>
-                  <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                  <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-                </tr>
-              </thead><tbody></tbody>
-            </table>
-          </div>
-          <div class="tab-pane">
-            <table class="table" id="tblPend2">
-              <thead>
-                <tr>
-                  <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                  <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-                </tr>
-              </thead><tbody></tbody>
-            </table>
-          </div>
-          <div class="tab-pane">
-            <table class="table" id="tblPend3">
-              <thead>
-                <tr>
-                  <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                  <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-                </tr>
-              </thead><tbody></tbody>
-            </table>
-          </div>
-          <div class="tab-pane">
-            <table class="table" id="tblPend4">
-              <thead>
-                <tr>
-                  <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                  <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-                </tr>
-              </thead><tbody></tbody>
-            </table>
-          </div>
+    <section class="panel">
+      <header class="panel-header">
+        <h2 id="panelTitle">Retirar • Línea 1</h2>
+        <div class="panel-actions">
+          <button id="btnRefresh" class="secondary" type="button">Refrescar</button>
         </div>
+      </header>
+
+      <div class="scroll">
+        <table class="table" id="tablaPendientes">
+          <thead>
+            <tr>
+              <th>Creado</th>
+              <th>Posición</th>
+              <th>Rack</th>
+              <th>Operador</th>
+              <th>Código seco</th>
+              <th>Cantidad</th>
+              <th>Entrada</th>
+              <th>Salida</th>
+            </tr>
+          </thead>
+          <tbody><!-- dinámico --></tbody>
+        </table>
       </div>
 
-      <p class="hint">Usa <em>Validar</em> para confirmar el código de seco. Al guardar, el registro pasa a <a href="#produccion">Producción</a>.</p>
-    </section>
-
-    <!-- PRODUCCIÓN -->
-    <section id="produccion" class="panel">
-      <header class="panel-header row-between">
-        <h2>Producción</h2>
-        <span id="prodTotal" class="badge">Total: 0</span>
-      </header>
-      <table class="table" id="tblProdAll">
-        <thead>
-          <tr>
-            <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-            <th>Rack</th><th>Posición</th><th>Validado por</th>
-          </tr>
-        </thead><tbody></tbody>
-      </table>
-      <p class="hint">Haz clic en cualquier registro para ver su detalle y elegir a qué <strong>Línea 1–3</strong> mandarlo a <strong>Retirar</strong> (salidas).</p>
-    </section>
-
-    <!-- RETIRAR (HISTÓRICO + ACTUAL) -->
-    <section id="retirar" class="panel">
-      <header class="panel-header"><h2>Retirar — por línea (histórico)</h2></header>
-      <div class="tabs">
-        <input type="radio" id="retL1" name="retTabs" checked />
-        <label for="retL1">Línea 1</label>
-        <input type="radio" id="retL2" name="retTabs" />
-        <label for="retL2">Línea 2</label>
-        <input type="radio" id="retL3" name="retTabs" />
-        <label for="retL3">Línea 3</label>
-        <div class="tab-content">
-          <div class="tab-pane"><ul id="ulRet1" class="cards"></ul></div>
-          <div class="tab-pane"><ul id="ulRet2" class="cards"></ul></div>
-          <div class="tab-pane"><ul id="ulRet3" class="cards"></ul></div>
-        </div>
-      </div>
-      <p class="hint">Selecciona un registro para ver su detalle.</p>
-    </section>
-
-    <!-- POSICIONES -->
-    <section id="posiciones" class="panel">
-      <header class="panel-header row-between">
-        <h2>Posiciones (P001–P450)</h2>
-        <input id="posSearch" class="search" type="search" placeholder="Buscar" />
-      </header>
-      <ul id="gridPos" class="grid-catalogo"></ul>
-      <p class="hint">Toca cualquier posición para editar estado y observaciones.</p>
-    </section>
-
-    <!-- RACKS -->
-    <section id="racks" class="panel">
-      <header class="panel-header row-between">
-        <h2>Racks (Rack001–Rack435)</h2>
-        <input id="rackSearch" class="search" type="search" placeholder="Buscar" />
-      </header>
-      <ul id="gridRack" class="grid-catalogo"></ul>
-      <p class="hint">Toca cualquier rack para editar estado y observaciones.</p>
-    </section>
-
-    <!-- COMENTARIOS -->
-    <section id="comentarios" class="panel">
-      <header class="panel-header"><h2>Comentarios</h2></header>
-      <h3 style="margin:.25rem 0 .5rem">Pendientes</h3>
-      <ul id="ulComentarios" class="comments"></ul>
-
-      <h3 style="margin:1rem 0 .5rem">Leídos</h3>
-      <ul id="ulComentariosLeidos" class="comments muted"></ul>
-      <p class="hint">Pulsa <em>Leído</em> para mover el comentario a su listado.</p>
+      <p class="hint">Toca cualquier fila para ver el detalle completo y confirmar el retiro.</p>
     </section>
   </main>
 
-  <!-- Modales -->
-  <!-- Validar -->
-  <dialog id="modalValidar" class="modal">
-    <form method="dialog" class="modal-content" id="formValidar">
-      <h3>Validar código de seco</h3>
-      <p id="valResumen" class="resume">—</p>
-      <div id="valDetalle" class="details"></div>
-      <div id="valChips" class="status-chips"></div>
-      <label class="field" style="margin-top:.5rem">
-        <span>Código de seco (escriba o escanee)</span>
-        <div class="with-actions">
-          <input id="valCodigo" type="text" placeholder="Ej. G-65-880" required />
-          <button type="button" class="ghost" id="btnScanVal">Escanear QR</button>
-        </div>
-      </label>
-      <div class="actions end">
-        <button class="primary" value="save">Guardar</button>
-        <button class="secondary" value="cancel">Cancelar</button>
-      </div>
-    </form>
-  </dialog>
+  <footer class="foot">
+    <small>© 2025 • Área Controlistas</small>
+  </footer>
 
-  <!-- Info registro (Producción/Retirar) -->
-  <dialog id="modalInfo" class="modal">
-    <form method="dialog" class="modal-content">
+  <!-- Modal: detalle y confirmación -->
+  <dialog id="modalDetalle" class="modal">
+    <div class="modal-content">
       <h3>Detalle del registro</h3>
-      <div id="infoBody" class="details"></div>
+      <div id="detalleResumen" class="resume"></div>
 
-      <!-- Elegir a qué línea mandar a Retirar (1–3) -->
-      <div id="infoActions" class="actions end">
-        <span style="margin-right:auto;opacity:.8">Mandar a Retirar en:</span>
-        <button type="button" class="accent" data-linea="1">Línea 1</button>
-        <button type="button" class="accent" data-linea="2">Línea 2</button>
-        <button type="button" class="accent" data-linea="3">Línea 3</button>
+      <div class="row two">
+        <div class="field">
+          <label for="confRack">Confirmar Rack</label>
+          <div class="with-actions">
+            <input id="confRack" type="text" placeholder="Ej. Rack001" />
+            <button type="button" id="btnScanRack" class="ghost">Escanear</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="confPos">Confirmar Posición</label>
+          <div class="with-actions">
+            <input id="confPos" type="text" placeholder="Ej. P002" />
+            <button type="button" id="btnScanPos" class="ghost">Escanear</button>
+          </div>
+        </div>
       </div>
 
-      <div class="actions end">
-        <button class="secondary" value="close">Cerrar</button>
+      <div class="actions">
+        <button id="btnConfirmarRetiro" class="primary" type="button">Confirmar retiro</button>
+        <button id="btnCerrarDetalle" class="secondary" type="button">Cerrar</button>
       </div>
-    </form>
+    </div>
   </dialog>
 
-  <!-- Editar Posición -->
-  <dialog id="modalPos" class="modal">
-    <form method="dialog" class="modal-content" id="formPos">
-      <h3 id="posTitle">Editar posición</h3>
-
-      <label class="field">
-        <span>Estado</span>
-        <select id="posEstado">
-          <option value="disponible">Disponible</option>
-          <option value="ocupada">Ocupada</option>
-        </select>
-      </label>
-
-      <div class="editor">
-        <label class="chip"><input type="checkbox" id="posActuador"> Actuador dañado</label>
-        <label class="chip"><input type="checkbox" id="posTarjeta"> Tarjeta dañada</label>
-        <label class="chip"><input type="checkbox" id="posAbraz"> Abrazaderas manifold dañadas</label>
-        <label class="chip"><input type="checkbox" id="posCable"> Cable de bajada dañado</label>
+  <!-- Modal CÓDIGO DE BARRAS (pantalla completa) -->
+  <dialog id="modalBAR" class="modal fullscreen">
+    <div class="modal-content">
+      <div id="barRegion"></div>
+      <div class="bar-controls">
+        <button class="secondary" id="btnBarUpload" type="button">Subir imagen</button>
+        <button class="secondary" id="btnBarCancel" type="button">Cancelar</button>
       </div>
-
-      <label class="field">
-        <span>Observaciones</span>
-        <textarea id="posObs" rows="3" placeholder="Notas, detalles, etc."></textarea>
-      </label>
-
-      <div class="actions end">
-        <button class="primary" value="save">Guardar</button>
-        <button class="secondary" value="cancel">Cancelar</button>
-      </div>
-    </form>
+      <div class="bar-hint">Apunta la cámara al código. Formatos válidos: Rack### / P###.</div>
+    </div>
   </dialog>
 
-  <!-- Editar Rack -->
-  <dialog id="modalRack" class="modal">
-    <form method="dialog" class="modal-content" id="formRack">
-      <h3 id="rackTitle">Editar rack</h3>
-
-      <label class="field">
-        <span>Estado</span>
-        <select id="rkEstado">
-          <option value="disponible">Disponible</option>
-          <option value="ocupado">Ocupado</option>
-        </select>
-      </label>
-
-      <div class="editor">
-        <label class="chip"><input type="checkbox" id="rkSoporte"> Soporte de dren dañado</label>
-        <label class="chip"><input type="checkbox" id="rkPorta"> Porta manguera dañada</label>
-        <label class="chip"><input type="checkbox" id="rkTina"> Tina dañada</label>
-      </div>
-
-      <label class="field">
-        <span>Observaciones</span>
-        <textarea id="rkObs" rows="3" placeholder="Notas, detalles, etc."></textarea>
-      </label>
-
-      <div class="actions end">
-        <button class="primary" value="save">Guardar</button>
-        <button class="secondary" value="cancel">Cancelar</button>
-      </div>
-    </form>
-  </dialog>
-
-  <script src="Controlistas.js"></script>
+  <!-- Quagga (lector de barras) + JS -->
+  <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+  <script src="./Controlistas.js"></script>
 </body>
 </html>
-
-
