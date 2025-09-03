@@ -234,18 +234,15 @@
     </div>
   </dialog>
 
-  <!-- Modal CÓDIGO DE BARRAS -->
-  <dialog id="modalBAR" class="modal">
-    <div class="modal-content" style="max-width:min(92vw,560px);">
-      <h3>Escanear código de barras</h3>
-      <div id="barRegion" style="width:100%;max-width:520px;margin:.75rem auto;"></div>
-      <small style="display:block;opacity:.75;margin:.25rem 0 .75rem;">
-        Apunta la cámara al código. Se cerrará automáticamente al reconocerlo.
-      </small>
-      <div class="actions" style="gap:.5rem;flex-wrap:wrap;">
+  <!-- Modal CÓDIGO DE BARRAS (pantalla completa) -->
+  <dialog id="modalBAR" class="modal fullscreen">
+    <div class="modal-content">
+      <div id="barRegion"></div>
+      <div class="bar-controls">
         <button class="secondary" id="btnBarUpload" type="button">Subir imagen</button>
         <button class="secondary" id="btnBarCancel" type="button">Cancelar</button>
       </div>
+      <div class="bar-hint">Apunta la cámara al código. Solo se aceptan formatos: Rack### / P###.</div>
     </div>
   </dialog>
 
