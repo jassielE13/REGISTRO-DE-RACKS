@@ -1,5 +1,6 @@
 // ================================
 // Patineros.js (completo con lector de CÓDIGOS DE BARRAS - Quagga)
+// Scanner fullscreen + validación estricta Rack### / P###
 // ================================
 
 // ====== Claves de almacenamiento ======
@@ -142,9 +143,14 @@ function autoformatPos(value) {
   return v;
 }
 
-// ====== Lector de CÓDIGOS DE BARRAS (Quagga) ======
+/* ================================
+   Lector de CÓDIGOS DE BARRAS (Quagga)
+   - Fullscreen
+   - Validación estricta Rack### / P###
+=================================== */
 const SECURE_ORIGIN = location.protocol === 'https:' || ['localhost','127.0.0.1'].includes(location.hostname);
 let barModal = null, barRegion = null, barInputTarget = null, barUploadBtn = null, barHiddenFile = null;
+let currentScanMode = 'text';
 
 function ensureBarDomRefs() {
   if (!barModal)  barModal  = document.getElementById("modalBAR");
@@ -164,10 +170,11 @@ function ensureBarDomRefs() {
       if (!file) return;
       try {
         const dataUrl = await readFileAsDataURL(file);
-        await decodeBarcodeFromImage(dataUrl); // si decodifica, cierra modal
+        await decodeBarcodeFromImage(dataUrl, currentScanMode);
       } catch (e) {
         console.error(e);
         alert("No se pudo leer el código de la imagen.");
+        flashInvalid();
       } finally {
         barHiddenFile.value = "";
       }
@@ -183,25 +190,34 @@ function readFileAsDataURL(file){
     fr.readAsDataURL(file);
   });
 }
-
 function isQuaggaLoaded() {
   return typeof window.Quagga === "object" && typeof window.Quagga.init === "function";
 }
 
+/* Validación estricta para lecturas */
+function isValidByMode(mode, value){
+  if (typeof value !== "string") return false;
+  const v = value.trim();
+  if (mode === 'rack') return /^Rack\d{3}$/.test(v);
+  if (mode === 'pos')  return /^P\d{3}$/.test(v);
+  return v.length > 0; // 'text' acepta cualquier cosa no vacía
+}
+
+function flashInvalid(){
+  barRegion?.classList.add("invalid-flash");
+  setTimeout(()=>barRegion?.classList.remove("invalid-flash"), 250);
+}
+
 async function openBarcodeScanner(targetInput, mode='text') {
   ensureBarDomRefs();
-  if (!SECURE_ORIGIN) {
-    alert("La cámara requiere HTTPS o localhost.");
-    return;
-  }
-  if (!isQuaggaLoaded()) {
-    alert("No se cargó la librería de códigos de barras (Quagga). Verifica el <script> del CDN.");
-    return;
-  }
-  barInputTarget = targetInput;
-  barModal.showModal();
+  if (!SECURE_ORIGIN) { alert("La cámara requiere HTTPS o localhost."); return; }
+  if (!isQuaggaLoaded()) { alert("No se cargó la librería de códigos de barras (Quagga). Verifica el <script> del CDN."); return; }
 
-  // limpiar región
+  barInputTarget = targetInput;
+  currentScanMode = mode;
+
+  // Abrir modal a pantalla completa
+  barModal.showModal();
   barRegion.innerHTML = "";
 
   const config = {
@@ -209,7 +225,9 @@ async function openBarcodeScanner(targetInput, mode='text') {
       type: "LiveStream",
       target: barRegion,
       constraints: {
-        facingMode: "environment", // trasera
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height:{ ideal: 1080 },
         aspectRatio: { min: 1, max: 2.5 }
       }
     },
@@ -217,7 +235,6 @@ async function openBarcodeScanner(targetInput, mode='text') {
     numOfWorkers: navigator.hardwareConcurrency ? Math.max(1, navigator.hardwareConcurrency - 1) : 2,
     frequency: 10,
     decoder: {
-      // Lista de formatos comunes; agrega/quita según tus etiquetas
       readers: [
         "code_128_reader",
         "ean_reader",
@@ -226,7 +243,7 @@ async function openBarcodeScanner(targetInput, mode='text') {
         "upc_reader",
         "upc_e_reader",
         "code_93_reader",
-        "i2of5_reader" // interleaved 2 of 5
+        "i2of5_reader"
       ]
     },
     locate: true
@@ -244,32 +261,32 @@ async function openBarcodeScanner(targetInput, mode='text') {
 
     function onDetected(result) {
       if (handled) return;
-      const code = result?.codeResult?.code;
-      if (!code) return;
+      const raw = result?.codeResult?.code?.trim();
+      if (!raw) return;
+
+      // Validación estricta
+      if (!isValidByMode(currentScanMode, raw)) {
+        flashInvalid();
+        if (currentScanMode === 'rack') alert('Formato inválido.\nSe requiere exactamente: Rack### (ej. Rack001).');
+        else if (currentScanMode === 'pos') alert('Formato inválido.\nSe requiere exactamente: P### (ej. P002).');
+        return; // sigue escaneando
+      }
 
       handled = true;
-      let v = (code || "").trim();
-      if (mode === 'rack') v = autoformatRack(v);
-      if (mode === 'pos')  v = autoformatPos(v);
-
       if (barInputTarget) {
-        barInputTarget.value = v;
+        barInputTarget.value = raw;
         barInputTarget.dispatchEvent(new Event("input"));
         barInputTarget.dispatchEvent(new Event("blur"));
       }
       stopBarcodeScanner();
     }
 
-    function onProcessed(result) {
-      // (opcional) dibujar cajas si quieres debug:
-      // const ctx = Quagga.canvas.ctx.overlay;
-      // const canvas = Quagga.canvas.dom.overlay;
-      // ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // if (result && result.boxes) { ... }
+    function onProcessed(_result) {
+      // opcional: dibujar cajas de depuración
     }
   } catch (e) {
     console.error("Error al iniciar Quagga:", e);
-    alert("No se pudo iniciar la cámara. Puedes usar 'Subir imagen' como alternativa.");
+    alert("No se pudo iniciar la cámara. Usa 'Subir imagen' como alternativa.");
   }
 }
 
@@ -283,11 +300,11 @@ async function stopBarcodeScanner() {
   } catch {}
   if (barModal?.open) barModal.close();
   barInputTarget = null;
-  // limpiar región
+  currentScanMode = 'text';
   if (barRegion) barRegion.innerHTML = "";
 }
 
-async function decodeBarcodeFromImage(dataUrl) {
+async function decodeBarcodeFromImage(dataUrl, mode='text') {
   if (!isQuaggaLoaded()) throw new Error("Quagga no cargó.");
   return new Promise((resolve, reject) => {
     Quagga.decodeSingle({
@@ -295,42 +312,35 @@ async function decodeBarcodeFromImage(dataUrl) {
       numOfWorkers: 0,
       decoder: {
         readers: [
-          "code_128_reader",
-          "ean_reader",
-          "ean_8_reader",
-          "code_39_reader",
-          "upc_reader",
-          "upc_e_reader",
-          "code_93_reader",
-          "i2of5_reader"
+          "code_128_reader","ean_reader","ean_8_reader",
+          "code_39_reader","upc_reader","upc_e_reader",
+          "code_93_reader","i2of5_reader"
         ]
       },
       locate: true
     }, (result) => {
-      const code = result?.codeResult?.code;
-      if (code) {
-        // Aplica al input activo, no sabemos si era rack/pos; intenta dar formato
-        let v = code.trim();
-        // Si parece número de 1-3 dígitos, podríamos formatear a Rack###/P###
-        if (/^\d{1,3}$/.test(v) && barInputTarget) {
-          if (barInputTarget.id === "numRack" || barInputTarget.id === "confirmRack") v = autoformatRack(v);
-          if (barInputTarget.id === "posRack") v = autoformatPos(v);
-        }
-        if (barInputTarget) {
-          barInputTarget.value = v;
-          barInputTarget.dispatchEvent(new Event("input"));
-          barInputTarget.dispatchEvent(new Event("blur"));
-        }
-        stopBarcodeScanner();
-        resolve(v);
-      } else {
-        reject(new Error("No se detectó código en la imagen."));
+      const raw = result?.codeResult?.code?.trim();
+      if (!raw) return reject(new Error("No se detectó código en la imagen."));
+
+      if (!isValidByMode(mode, raw)) {
+        flashInvalid();
+        if (mode === 'rack') alert('Formato inválido en imagen.\nSe requiere exactamente: Rack### (ej. Rack001).');
+        else if (mode === 'pos') alert('Formato inválido en imagen.\nSe requiere exactamente: P### (ej. P002).');
+        return reject(new Error("Formato inválido"));
       }
+
+      if (barInputTarget) {
+        barInputTarget.value = raw;
+        barInputTarget.dispatchEvent(new Event("input"));
+        barInputTarget.dispatchEvent(new Event("blur"));
+      }
+      stopBarcodeScanner();
+      resolve(raw);
     });
   });
 }
 
-// Cancelar modal
+// Cancelar modal (botón)
 document.getElementById("btnBarCancel")?.addEventListener("click", () => { stopBarcodeScanner(); });
 
 // ====== Helper visual para tabla (OK / Dañado / —) ======
@@ -572,9 +582,8 @@ formEntrada.addEventListener("click", (e) => {
       return;
     }
 
-    let confirmRack = autoformatRack(inputConfirmRack.value.trim());
-    if (!confirmRack) { alert("Debes confirmar el Rack (ej. Rack001)."); inputConfirmRack.focus(); return; }
-    inputConfirmRack.value = confirmRack;
+    let confirmRack = inputConfirmRack.value.trim();
+    if (!RX_PATTERN.test(confirmRack)) { alert('Formato inválido. Se requiere: Rack### (ej. Rack001).'); inputConfirmRack.focus(); return; }
     if (confirmRack !== currentSalida.rack) { alert(`El Rack confirmado (${confirmRack}) no coincide con el asignado (${currentSalida.rack}).`); inputConfirmRack.focus(); return; }
 
     currentSalida.entrada = { byId, byName, confirmLinea: currentSalida.linea, confirmRack, at: nowISO() };
@@ -804,3 +813,4 @@ window.addEventListener("hashchange", () => {
 document.getElementById("btnScanSeco")   ?.addEventListener("click", () => openBarcodeScanner(document.getElementById("codigoSeco"), 'text'));
 document.getElementById("btnScanNumRack")?.addEventListener("click", () => openBarcodeScanner(document.getElementById("numRack"), 'rack'));
 document.getElementById("btnScanPosRack")?.addEventListener("click", () => openBarcodeScanner(document.getElementById("posRack"), 'pos'));
+document.getElementById("btnScanRack")   ?.addEventListener("click", () => openBarcodeScanner(document.getElementById("confirmRack"), 'rack'));
