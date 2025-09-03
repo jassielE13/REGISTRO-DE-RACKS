@@ -8,10 +8,12 @@ const LS_KEYS = {
   FORM_LAST_BY_LINE: "patineros_form_last_by_line",
   CONTROLISTAS: "controlistas_pendientes",
   EN_USO: "en_uso",              // { posiciones:{}, racks:{} }
-  RETIRAR: "retirar_listas",     // { 1:[...], 2:[...], 3:[...] }
-  SALIDAS: "salidas_listas",     // { 1:[...], 2:[...], 3:[...] }
+  RETIRAR: "retirar_listas",     // { 1:[...], 2:[...], 3:[...] } -> vista Patineros
+  SALIDAS: "salidas_listas",     // { 1:[...], 2:[...], 3:[...] } -> vista Patineros
   STATUS_POS_DET: "status_posiciones_detalle",
-  STATUS_RACKS_DET: "status_racks_detalle"
+  STATUS_RACKS_DET: "status_racks_detalle",
+  // NUEVO: cola de "Retirar" para Controlistas (lo que Patinero manda al dar SALIDA)
+  CONTROLISTAS_RETIRAR: "controlistas_retirar"
 };
 const TAB_KEY = "patineros_tabs_state"; // { retirar:'sal1|sal2|sal3', salidas:'salout1|salout2|salout3' }
 
@@ -624,12 +626,24 @@ formSalida.addEventListener("click", (e) => {
     const byId   = CURRENT_USER?.id || null;
     if (!byName) return;
 
+    // 1) Marcar salida en el registro actual (conservar toda la traza)
     currentSalida.salida = { byId, byName, at: nowISO() };
 
+    // 2) Liberar recursos en uso (posición y rack)
     delete enUso.posiciones[currentSalida.posicion];
     delete enUso.racks[currentSalida.rack];
     safeSave(LS_KEYS.EN_USO, enUso);
 
+    // 3) MOVER el registro COMPLETO a la cola de "RETIRAR" para CONTROLISTAS
+    //    (se conserva entrada/salida y metadatos)
+    const ctlRet = loadJSON(LS_KEYS.CONTROLISTAS_RETIRAR, []);
+    // Clon profundo para no compartir referencias
+    const clonado = JSON.parse(JSON.stringify(currentSalida));
+    clonado.movedToControlistasAt = nowISO();
+    ctlRet.push(clonado);
+    safeSave(LS_KEYS.CONTROLISTAS_RETIRAR, ctlRet);
+
+    // 4) Quitar de la lista de SALIDAS (solo de la vista del patinero)
     const lista = salidasListas[currentSalida.linea] || [];
     const idx   = lista.findIndex(x => x.id === currentSalida.id);
     if (idx >= 0) { lista.splice(idx,1); salidasListas[currentSalida.linea] = lista; }
@@ -637,6 +651,7 @@ formSalida.addEventListener("click", (e) => {
 
     modalSalida.close();
     try { renderAll(); } catch(e2){ console.error("renderAll() tras salida", e2); }
+    alert("Salida registrada. El controlista verá este registro en su apartado de 'Retirar'.");
   }
 
   if (btn.value === "cancel") modalSalida.close();
@@ -656,161 +671,3 @@ function renderRetirar() {
       tr.innerHTML = `
         <td>${item.posicion}</td>
         <td>${item.rack}</td>
-        <td><button class="accent" type="button">Retirar</button></td>
-      `;
-      tr.querySelector("button").addEventListener("click", () => handleRetirar(item, linea));
-      tbody.appendChild(tr);
-    });
-  }
-  fill(tablaRetirar1, retirarListas[1]||[], 1);
-  fill(tablaRetirar2, retirarListas[2]||[], 2);
-  fill(tablaRetirar3, retirarListas[3]||[], 3);
-}
-
-function renderSalidas() {
-  if (!tablaSalidas1 || !tablaSalidas2 || !tablaSalidas3) return;
-  function fill(tbody, lista) {
-    tbody.innerHTML = "";
-    const activo   = (lista || []).find(r => r.entrada && !r.salida);
-    const activoId = activo?.id || null;
-
-    if (!lista || !lista.length) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; opacity:.7">Sin elementos</td></tr>`;
-      return;
-    }
-
-    lista.forEach(reg => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${reg.posicion}</td><td>${reg.rack}</td><td></td><td></td>`;
-
-      if (activoId && reg.id !== activoId) {
-        // Otro activo en esta línea: sin botones
-      } else {
-        if (!reg.entrada) {
-          if (!activoId) {
-            const btnEntrada = document.createElement("button");
-            btnEntrada.type = "button";
-            btnEntrada.textContent = "Dar entrada";
-            btnEntrada.className = "primary";
-            btnEntrada.addEventListener("click", () => openEntradaModal(reg));
-            tr.children[2].appendChild(btnEntrada);
-          }
-        } else {
-          const btnSalida = document.createElement("button");
-          btnSalida.type = "button";
-          const left = secondsToEnable(reg);
-          if (left === 0) {
-            btnSalida.textContent = "Dar salida";
-            btnSalida.className = "accent";
-            btnSalida.disabled = false;
-            btnSalida.addEventListener("click", () => openSalidaModal(reg));
-          } else {
-            btnSalida.textContent = `Dar salida (${left}s)`;
-            btnSalida.className = "primary";
-            btnSalida.disabled = true;
-          }
-          tr.children[3].appendChild(btnSalida);
-        }
-      }
-
-      tbody.appendChild(tr);
-    });
-
-    attachRowInfoHandlers(tbody, lista);
-  }
-  fill(tablaSalidas1, salidasListas[1]||[]);
-  fill(tablaSalidas2, salidasListas[2]||[]);
-  fill(tablaSalidas3, salidasListas[3]||[]);
-}
-
-function renderPosiciones() {
-  if (!tablaPosiciones) return;
-  tablaPosiciones.innerHTML = "";
-  for (let i = 1; i <= 450; i++) {
-    const p = `P${pad3(i)}`;
-    const libre = !enUso.posiciones[p];
-
-    const det = statusPosDet[p] || {};
-    const tdActuador = damageCellHTML(det.actuador);
-    const tdTarjeta  = damageCellHTML(det.tarjeta);
-    const tdAbraz    = damageCellHTML(det.abrazaderas);
-    const tdCable    = damageCellHTML(det.cable_bajada);
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${p}</td>
-      <td class="${libre ? "ok" : "busy"}">${libre ? "Libre" : "Ocupada"}</td>
-      ${tdActuador}
-      ${tdTarjeta}
-      ${tdAbraz}
-      ${tdCable}
-      <td>—</td>
-    `;
-    tablaPosiciones.appendChild(tr);
-  }
-}
-
-function renderRacks() {
-  if (!tablaRacks) return;
-  tablaRacks.innerHTML = "";
-  for (let i = 1; i <= 435; i++) {
-    const r = `Rack${pad3(i)}`;
-    const libre = !enUso.racks[r];
-
-    const det = statusRacksDet[r] || {};
-    const tdSoporte = damageCellHTML(det.soporte_dren);
-    const tdPorta   = damageCellHTML(det.porta_manguera);
-    const tdTina    = damageCellHTML(det.tina);
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r}</td>
-      <td class="${libre ? "ok" : "busy"}">${libre ? "Listo" : "En uso"}</td>
-      ${tdSoporte}
-      ${tdPorta}
-      ${tdTina}
-    `;
-    tablaRacks.appendChild(tr);
-  }
-}
-
-function updateCountersUI(){
-  const hRet = document.querySelector('#retirar .panel-header h2');
-  const hSal = document.querySelector('#salidas .panel-header h2');
-
-  const r1=(retirarListas[1]||[]).length, r2=(retirarListas[2]||[]).length, r3=(retirarListas[3]||[]).length;
-  const s1=(salidasListas[1]||[]).length, s2=(salidasListas[2]||[]).length, s3=(salidasListas[3]||[]).length;
-
-  if (hRet) hRet.textContent = `Retirar Racks — L1:${r1} • L2:${r2} • L3:${r3}`;
-  if (hSal) hSal.textContent = `Salidas — L1:${s1} • L2:${s2} • L3:${s3}`;
-}
-
-function renderAll() {
-  renderRetirar();
-  renderSalidas();
-  renderPosiciones();
-  renderRacks();
-  updateCountersUI();
-}
-
-// ====== Inicialización de render y timers ======
-try { renderAll(); }
-catch (e) { console.error("Error en renderAll()", e); alert("Ocurrió un error al dibujar las tablas. Revisa la consola."); }
-
-setInterval(() => {
-  try { renderSalidas(); }
-  catch (e) { console.error("Error en renderSalidas()", e); }
-}, 1000);
-
-window.addEventListener("hashchange", () => {
-  const id = location.hash.replace("#","");
-  if (id === "racks" || id === "posiciones" || id === "salidas" || id === "retirar") {
-    try { renderAll(); } catch(e){ console.error("renderAll() on hashchange", e); }
-  }
-});
-
-// ====== Botones de escaneo (form principal) ======
-document.getElementById("btnScanSeco")   ?.addEventListener("click", () => openBarcodeScanner(document.getElementById("codigoSeco"), 'text'));
-document.getElementById("btnScanNumRack")?.addEventListener("click", () => openBarcodeScanner(document.getElementById("numRack"), 'rack'));
-document.getElementById("btnScanPosRack")?.addEventListener("click", () => openBarcodeScanner(document.getElementById("posRack"), 'pos'));
-document.getElementById("btnScanRack")   ?.addEventListener("click", () => openBarcodeScanner(document.getElementById("confirmRack"), 'rack'));
