@@ -3,12 +3,12 @@ const LS_KEYS = {
   FORM_LAST_BY_LINE: "patineros_form_last_by_line", // último formulario por línea
   CONTROLISTAS: "controlistas_pendientes",
   EN_USO: "en_uso",            // {posiciones:{}, racks:{}}
-  RETIRAR: "retirar_listas",   // {1:[{...}],2:[...],3:[...]}
+  RETIRAR: "retirar_listas",   // {1:[{...}],2:[...],3:[...]} ← llenado por Controlistas
   SALIDAS: "salidas_listas",   // {1:[{...}],2:[...],3:[...]}
   // Solo vista (los llena Controlistas)
-  STATUS_POS_DET: "status_posiciones_detalle", // { "P001": {actuador:true/false, tarjeta:true/false, abrazaderas:true/false, cable_bajada:true/false}, ... }
-  STATUS_RACKS_DET: "status_racks_detalle",     // { "Rack001": {soporte_dren:true/false, porta_manguera:true/false, tina:true/false}, ... }
-  // 👇 NUEVO: histórico permanente que ve Controlistas en su pestaña “Retirar”
+  STATUS_POS_DET: "status_posiciones_detalle", // { "P001": {...} }
+  STATUS_RACKS_DET: "status_racks_detalle",    // { "Rack001": {...} }
+  // Histórico permanente que ve Controlistas en su pestaña “Retirar”
   RETIRAR_HIST: "retirar_historial_all"
 };
 
@@ -20,12 +20,12 @@ const CURRENT_USER = loadJSON("CURRENT_USER", null);
 
 // ====== Estado ======
 const enUso = loadJSON(LS_KEYS.EN_USO, { posiciones:{}, racks:{} });
-const retirarListas = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[]});
+const retirarListas = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[]}); // lo llena Controlistas
 const salidasListas = loadJSON(LS_KEYS.SALIDAS, {1:[],2:[],3:[]});
 
 // Mapas de solo lectura (los llena Controlistas)
-const statusPosDet = loadJSON(LS_KEYS.STATUS_POS_DET, {});     // p.ej: { "P001": { actuador:true, tarjeta:false, ... } }
-const statusRacksDet = loadJSON(LS_KEYS.STATUS_RACKS_DET, {}); // p.ej: { "Rack001": { soporte_dren:true, ... } }
+const statusPosDet = loadJSON(LS_KEYS.STATUS_POS_DET, {});
+const statusRacksDet = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});
 
 // ====== Formatos y utilidades ======
 function getLineaSeleccionada() { const r = document.querySelector('input[name="linea"]:checked'); return r ? parseInt(r.value,10) : null; }
@@ -94,7 +94,7 @@ const inputCantidad = document.getElementById("cantidad");
 const inputNumRack = document.getElementById("numRack");
 const inputPosRack = document.getElementById("posRack");
 
-// Botones de escaneo junto a inputs (toman el primer botón dentro de .with-actions)
+// Botones de escaneo junto a inputs
 const btnScanSeco = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
 const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
 const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
@@ -122,7 +122,7 @@ const formSalida = document.getElementById("formSalida");
 const inputPatineroEntrada = document.getElementById("patineroEntrada");
 const inputValidacionPatinero = document.getElementById("validacionPatinero");
 
-// Confirmación de línea (delegación) y escáner rack
+// Confirmación de línea y escáner rack en modal Entrada
 const confirmLineaContainer = document.getElementById("confirmLineaBtns");
 const inputConfirmLineaValue = document.getElementById("confirmLineaValue");
 const inputConfirmRack = document.getElementById("confirmRack");
@@ -222,12 +222,12 @@ form.addEventListener("submit", (e) => {
     return;
   }
 
-  // 1) Persistir "último formulario" por línea, dejando rack/posición en blanco para el siguiente
+  // 1) Persistir "último formulario" por línea (deja rack/posición en blanco)
   const map = loadLastByLine();
   map[linea] = { linea, operador, codigoSeco, firmando, cantidad, numRack: "", posRack: "" };
   saveLastByLine(map);
 
-  // 2) Enviar a Controlistas (pendientes) con trazabilidad
+  // 2) Enviar a Controlistas (Pendientes) con trazabilidad
   const nuevo = {
     id: crypto.randomUUID(),
     linea, operador, codigoSeco, firmando, cantidad,
@@ -246,23 +246,17 @@ form.addEventListener("submit", (e) => {
   enUso.racks[rack] = true;
   saveJSON(LS_KEYS.EN_USO, enUso);
 
-  // 4) Añadir a RETIRAR
-  (retirarListas[linea] = retirarListas[linea] || []).push({
-    posicion, rack, linea, refId: nuevo.id,
-    operador: nuevo.operador, empleado: nuevo.registradoPorId,
-    codigoSeco, cantidad, creadoEn: nuevo.creadoEn, registradoPorNombre: nuevo.registradoPorNombre
-  });
-  saveJSON(LS_KEYS.RETIRAR, retirarListas);
+  // 4) ⚠️ NO enviar a RETIRAR aquí. Eso lo hace Controlistas desde Producción.
 
   // 5) Dejar SOLO rack y posición en blanco en la UI actual
   inputNumRack.value = "";
   inputPosRack.value = "";
 
   renderAll();
-  alert("Registro guardado y enviado a Controlistas.");
+  alert("Registro guardado y enviado a Controlistas (Pendientes).");
 });
 
-// ====== Retirar -> mover a Salidas ======
+// ====== Retirar -> mover a Salidas (Patinero) ======
 function handleRetirar(item, linea) {
   const registro = {
     id: crypto.randomUUID(),
@@ -523,15 +517,13 @@ function renderSalidas() {
 
       tr.innerHTML = `<td>${reg.posicion}</td><td>${reg.rack}</td><td>${entradaTxt}</td><td>${salidaTxt}</td>`;
 
-      // Si ya tiene salida, no mostramos botones (queda como histórico visible)
       if (reg.salida) {
-        // nada
+        // histórico visible, sin botones
       } else {
         if (activoId && reg.id !== activoId) {
-          // Mientras otro esté activo en esta línea, este no muestra botones
+          // Mientras otro esté activo en esta línea, éste no muestra botones
         } else {
           if (!reg.entrada) {
-            // No hay activo en esta línea: puede dar entrada
             if (!activoId) {
               const btnEntrada = document.createElement("button");
               btnEntrada.type = "button";
@@ -542,12 +534,11 @@ function renderSalidas() {
               tr.children[2].appendChild(btnEntrada);
             }
           } else {
-            // Es el activo de la línea: muestra salida (verde si habilitado)
             const btnSalida = document.createElement("button");
             btnSalida.type = "button";
             btnSalida.textContent = "Dar salida";
             if (canShowDarSalida(reg)) {
-              btnSalida.className = "accent"; // verde
+              btnSalida.className = "accent";
               btnSalida.disabled = false;
               btnSalida.addEventListener("click", () => openSalidaModal(reg));
             } else {
@@ -563,7 +554,6 @@ function renderSalidas() {
       tbody.appendChild(tr);
     });
 
-    // detalle on row click
     attachRowInfoHandlers(tbody, lista);
   }
 
@@ -578,11 +568,10 @@ function renderPosiciones() {
     const p = `P${pad3(i)}`;
     const libre = !enUso.posiciones[p];
 
-    // Detalle (solo vista) que mantiene Controlistas
     const det = statusPosDet[p] || {};
     const tdActuador = damageCellHTML(det.actuador);
     const tdTarjeta = damageCellHTML(det.tarjeta);
-    const tdAbraz   = damageCellHTML(det.abrazaderas); // Abrazaderas de manifold
+    const tdAbraz   = damageCellHTML(det.abrazaderas);
     const tdCable   = damageCellHTML(det.cable_bajada);
 
     const tr = document.createElement("tr");
@@ -605,7 +594,6 @@ function renderRacks() {
     const r = `Rack${pad3(i)}`;
     const libre = !enUso.racks[r];
 
-    // Detalle (solo vista) que mantiene Controlistas
     const det = statusRacksDet[r] || {};
     const tdSoporte = damageCellHTML(det.soporte_dren);
     const tdPorta   = damageCellHTML(det.porta_manguera);
@@ -624,6 +612,12 @@ function renderRacks() {
 }
 
 function renderAll() {
+  // recargar RETIRAR por si Controlistas envió nuevos
+  const freshRetirar = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[]});
+  retirarListas[1] = freshRetirar[1] || [];
+  retirarListas[2] = freshRetirar[2] || [];
+  retirarListas[3] = freshRetirar[3] || [];
+
   renderRetirar();
   renderSalidas();
   renderPosiciones();
