@@ -2,8 +2,6 @@
 // Patineros.js (completo con lector QR real y chequeos)
 // ================================
 
-<script src="https://unpkg.com/html5-qrcode@2.3.10"></script>
-
 // ====== Claves de almacenamiento ======
 const LS_KEYS = {
   FORM_LAST_BY_LINE: "patineros_form_last_by_line",
@@ -730,4 +728,5 @@ const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("bu
 btnScanSeco?.addEventListener("click",    () => openQrScanner(inputCodigoSeco, 'text'));
 btnScanNumRack?.addEventListener("click", () => openQrScanner(inputNumRack, 'rack'));
 btnScanPosRack?.addEventListener("click", () => openQrScanner(inputPosRack, 'pos'));
+
 
