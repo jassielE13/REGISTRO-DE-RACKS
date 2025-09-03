@@ -14,6 +14,7 @@ const LS_KEYS = {
   STATUS_RACKS_DET: "status_racks_detalle",
   // NUEVO: cola de "Retirar" para Controlistas (lo que Patinero manda al dar SALIDA)
   CONTROLISTAS_RETIRAR: "controlistas_retirar"
+  RETIRAR_HIST: "retirar_historial_all"
 };
 const TAB_KEY = "patineros_tabs_state"; // { retirar:'sal1|sal2|sal3', salidas:'salout1|salout2|salout3' }
 
@@ -671,3 +672,4 @@ function renderRetirar() {
       tr.innerHTML = `
         <td>${item.posicion}</td>
         <td>${item.rack}</td>
+
