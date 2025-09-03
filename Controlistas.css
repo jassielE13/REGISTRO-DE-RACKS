@@ -65,6 +65,8 @@ body {
 
 /* Aux layout */
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.row.two { display: grid; grid-template-columns: repeat(2, minmax(220px,1fr)); gap: .75rem; }
+
 .badge { border: 1px solid var(--c-border); background: var(--c-panel); color: var(--c-text); padding: .35rem .7rem; border-radius: 999px; font-weight: 600; box-shadow: var(--shadow); }
 
 /* Buscadores */
@@ -142,6 +144,24 @@ button.ghost:hover { background: var(--c-border); }
 #retL2:checked ~ .tab-content .tab-pane:nth-of-type(2),
 #retL3:checked ~ .tab-content .tab-pane:nth-of-type(3) { display: block; }
 
+/* ===== LISTA CARDS para RETIRAR ===== */
+.cards { 
+  list-style: none; 
+  display: grid; 
+  gap: .75rem; 
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+}
+.cards .card {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: .85rem .9rem;
+  background: var(--c-panel);
+  box-shadow: var(--shadow);
+}
+.cards .card:hover { background: color-mix(in srgb, var(--c-border) 35%, transparent); }
+
+/* Si usas tablas en Retirar (tblRet1/2/3), siguen los estilos .table de arriba */
+
 /* ===== GRID (Posiciones / Racks) con estado estilo Patineros ===== */
 .grid-catalogo { list-style: none; display: grid; gap: .6rem; grid-template-columns: repeat(6, 1fr); }
 .grid-catalogo li {
@@ -154,61 +174,10 @@ button.ghost:hover { background: var(--c-border); }
 .state-ok  { background: rgba(22,163,74,.15); color: var(--c-accent); border: 1px solid rgba(22,163,74,.3); }
 .state-busy{ background: rgba(220,38,38,.15); color: var(--c-danger); border: 1px solid rgba(220,38,38,.3); }
 
-@media (max-width: 1100px){ .grid-catalogo { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 760px){ .grid-catalogo { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 520px){ .grid-catalogo { grid-template-columns: repeat(2, 1fr); } }
-
 /* ===== COMMENTS ===== */
 .comments { list-style: none; display: grid; gap: .6rem; }
 .comments li {
   border: 1px solid var(--c-border); border-radius: var(--radius); padding: .6rem .8rem; background: var(--c-panel);
   display: grid; gap: .35rem;
 }
-.comments li .row { display:flex; gap:.5rem; align-items:center; justify-content:space-between; }
-.comments.muted li { opacity: .8; }
-
-/* ===== MODALS (centrados) ===== */
-.modal {
-  max-width: 640px;
-  width: 92%;
-  border: none;
-  border-radius: var(--radius);
-  padding: 0;
-  box-shadow: var(--shadow);
-}
-.modal[open] {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  margin: 0;
-}
-.modal::backdrop { background: rgba(0,0,0,.4); }
-.modal-content {
-  padding: 1.25rem;
-  background: var(--c-panel);
-  border-radius: var(--radius);
-  display: grid;
-  gap: .75rem;
-}
-.resume { color: var(--c-muted); }
-.details {
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius);
-  padding: .75rem;
-}
-.details dl { display: grid; grid-template-columns: 1fr 2fr; gap: .4rem .8rem; }
-.details dt { color: var(--c-muted); }
-.details dd { color: var(--c-text); }
-.actions.end { display:flex; gap:.5rem; justify-content:flex-end; }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-  .topbar .navbar { flex-wrap: wrap; gap: .5rem; }
-  .with-actions { flex-direction: column; }
-  .details dl { grid-template-columns: 1fr; }
-}
-@media (max-width: 480px) {
-  .topbar { flex-direction: column; gap: .5rem; }
-  .topbar .logout { align-self: flex-end; }
-}
+.comments
