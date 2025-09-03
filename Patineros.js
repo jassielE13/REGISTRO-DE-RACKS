@@ -1,5 +1,5 @@
 // ================================
-// Patineros.js (completo con lector QR real)
+// Patineros.js (completo con lector QR real y chequeos)
 // ================================
 
 // ====== Claves de almacenamiento ======
@@ -28,16 +28,33 @@ function safeSave(key, value) {
   }
 }
 
-// ====== Usuario actual (proveniente del login) ======
+// ====== Seguridad de origen para cámara ======
+const SECURE_ORIGIN =
+  location.protocol === 'https:' ||
+  location.hostname === 'localhost' ||
+  location.hostname === '127.0.0.1';
+function assertCameraAvailable() {
+  if (!SECURE_ORIGIN) {
+    alert("La cámara requiere HTTPS o localhost. Abre la app en HTTPS (o usa localhost) para escanear.");
+    return false;
+  }
+  if (!window.Html5Qrcode) {
+    alert("No se cargó el lector QR (html5-qrcode). Verifica el <script> del CDN.");
+    return false;
+  }
+  return true;
+}
+
+// ====== Usuario actual ======
 const CURRENT_USER = loadJSON("CURRENT_USER", null);
 
 // ====== Estado persistente ======
-const enUso = loadJSON(LS_KEYS.EN_USO, { posiciones: {}, racks: {} });
-const retirarListas = loadJSON(LS_KEYS.RETIRAR, { 1: [], 2: [], 3: [] });
-const salidasListas = loadJSON(LS_KEYS.SALIDAS, { 1: [], 2: [], 3: [] });
+const enUso         = loadJSON(LS_KEYS.EN_USO, { posiciones:{}, racks:{} });
+const retirarListas = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[]});
+const salidasListas = loadJSON(LS_KEYS.SALIDAS, {1:[],2:[],3:[]});
 
 // Mapas de solo lectura (llenados por Controlistas)
-const statusPosDet = loadJSON(LS_KEYS.STATUS_POS_DET, {});
+const statusPosDet   = loadJSON(LS_KEYS.STATUS_POS_DET, {});
 const statusRacksDet = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});
 
 // ====== Reconciliación de estados ======
@@ -45,22 +62,22 @@ function reconcileEnUso() {
   const nuevo = { posiciones: {}, racks: {} };
 
   // Ocupan recursos los que están en SALIDAS y no tienen salida
-  const s = loadJSON(LS_KEYS.SALIDAS, { 1: [], 2: [], 3: [] });
-  [1, 2, 3].forEach(l => {
+  const s = loadJSON(LS_KEYS.SALIDAS, {1:[],2:[],3:[]});
+  [1,2,3].forEach(l => {
     (s[l] || []).forEach(reg => {
       if (!reg?.salida) {
         if (reg?.posicion) nuevo.posiciones[reg.posicion] = true;
-        if (reg?.rack) nuevo.racks[reg.rack] = true;
+        if (reg?.rack)     nuevo.racks[reg.rack] = true;
       }
     });
   });
 
   // También ocupan los que están en RETIRAR
-  const r = loadJSON(LS_KEYS.RETIRAR, { 1: [], 2: [], 3: [] });
-  [1, 2, 3].forEach(l => {
+  const r = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[]});
+  [1,2,3].forEach(l => {
     (r[l] || []).forEach(item => {
       if (item?.posicion) nuevo.posiciones[item.posicion] = true;
-      if (item?.rack) nuevo.racks[item.rack] = true;
+      if (item?.rack)     nuevo.racks[item.rack] = true;
     });
   });
 
@@ -72,42 +89,42 @@ function reconcileEnUso() {
 reconcileEnUso();
 
 // ====== DOM ======
-const form = document.getElementById("formRegistro");
-const inputOperador = document.getElementById("operador");
-const inputCodigoSeco = document.getElementById("codigoSeco");
-const inputFirmando = document.getElementById("firmandoAcum");
-const inputCantidad = document.getElementById("cantidad");
-const inputNumRack = document.getElementById("numRack");
-const inputPosRack = document.getElementById("posRack");
+const form                  = document.getElementById("formRegistro");
+const inputOperador         = document.getElementById("operador");
+const inputCodigoSeco       = document.getElementById("codigoSeco");
+const inputFirmando         = document.getElementById("firmandoAcum");
+const inputCantidad         = document.getElementById("cantidad");
+const inputNumRack          = document.getElementById("numRack");
+const inputPosRack          = document.getElementById("posRack");
 
-const tablaRetirar1 = document.querySelector("#tablaRetirar1 tbody");
-const tablaRetirar2 = document.querySelector("#tablaRetirar2 tbody");
-const tablaRetirar3 = document.querySelector("#tablaRetirar3 tbody");
+const tablaRetirar1         = document.querySelector("#tablaRetirar1 tbody");
+const tablaRetirar2         = document.querySelector("#tablaRetirar2 tbody");
+const tablaRetirar3         = document.querySelector("#tablaRetirar3 tbody");
 
-const tablaSalidas1 = document.querySelector("#tablaSalidas1 tbody");
-const tablaSalidas2 = document.querySelector("#tablaSalidas2 tbody");
-const tablaSalidas3 = document.querySelector("#tablaSalidas3 tbody");
+const tablaSalidas1         = document.querySelector("#tablaSalidas1 tbody");
+const tablaSalidas2         = document.querySelector("#tablaSalidas2 tbody");
+const tablaSalidas3         = document.querySelector("#tablaSalidas3 tbody");
 
-const tablaPosiciones = document.querySelector("#tablaPosiciones tbody");
-const tablaRacks = document.querySelector("#tablaRacks tbody");
+const tablaPosiciones       = document.querySelector("#tablaPosiciones tbody");
+const tablaRacks            = document.querySelector("#tablaRacks tbody");
 
-const modalEntrada = document.getElementById("modalEntrada");
-const modalSalida = document.getElementById("modalSalida");
-const modalInfo = document.getElementById("modalInfo");
-const infoDetalle = document.getElementById("infoDetalle");
+const modalEntrada          = document.getElementById("modalEntrada");
+const modalSalida           = document.getElementById("modalSalida");
+const modalInfo             = document.getElementById("modalInfo");
+const infoDetalle           = document.getElementById("infoDetalle");
 
-const entradaResumen = document.getElementById("entradaResumen");
-const salidaResumen = document.getElementById("salidaResumen");
-const formEntrada = document.getElementById("formEntrada");
-const formSalida = document.getElementById("formSalida");
-const inputPatineroEntrada = document.getElementById("patineroEntrada");
+const entradaResumen        = document.getElementById("entradaResumen");
+const salidaResumen         = document.getElementById("salidaResumen");
+const formEntrada           = document.getElementById("formEntrada");
+const formSalida            = document.getElementById("formSalida");
+const inputPatineroEntrada  = document.getElementById("patineroEntrada");
 const inputValidacionPatinero = document.getElementById("validacionPatinero");
 
 // Confirmación de línea y QR en modal de entrada
 const confirmLineaContainer = document.getElementById("confirmLineaBtns");
-const inputConfirmLineaValue = document.getElementById("confirmLineaValue");
-const inputConfirmRack = document.getElementById("confirmRack");
-const btnScanRack = document.getElementById("btnScanRack");
+const inputConfirmLineaValue= document.getElementById("confirmLineaValue");
+const inputConfirmRack      = document.getElementById("confirmRack");
+const btnScanRack           = document.getElementById("btnScanRack");
 
 // ====== Estado interno ======
 let currentSalida = null;
@@ -125,23 +142,23 @@ function nowISO() { return new Date().toISOString(); }
 function fmtDateTime(iso) { const d = new Date(iso); return d.toLocaleString(); }
 function pad3(n) { return String(n).padStart(3, "0"); }
 
-const RX_PATTERN = /^Rack\d{3}$/;
+const RX_PATTERN  = /^Rack\d{3}$/;
 const POS_PATTERN = /^P\d{3}$/;
 
 function autoformatRack(value) {
   const v = (value || "").trim();
   if (RX_PATTERN.test(v)) return v;
-  if (/^\d{1,3}$/.test(v)) return `Rack${pad3(parseInt(v, 10))}`;
+  if (/^\d{1,3}$/.test(v)) return `Rack${pad3(parseInt(v,10))}`;
   const m = /^Rack(\d{1,3})$/.exec(v);
-  if (m) return `Rack${pad3(parseInt(m[1], 10))}`;
+  if (m) return `Rack${pad3(parseInt(m[1],10))}`;
   return v;
 }
 function autoformatPos(value) {
   const v = (value || "").trim();
   if (POS_PATTERN.test(v)) return v;
-  if (/^\d{1,3}$/.test(v)) return `P${pad3(parseInt(v, 10))}`;
+  if (/^\d{1,3}$/.test(v)) return `P${pad3(parseInt(v,10))}`;
   const m = /^P(\d{1,3})$/.exec(v);
-  if (m) return `P${pad3(parseInt(m[1], 10))}`;
+  if (m) return `P${pad3(parseInt(m[1],10))}`;
   return v;
 }
 
@@ -149,20 +166,18 @@ function autoformatPos(value) {
 let qrModal = null, qrRegion = null, qrReader = null, qrTargetInput = null;
 
 function ensureQrDomRefs() {
-  if (!qrModal) qrModal = document.getElementById("modalQR");
+  if (!qrModal)  qrModal  = document.getElementById("modalQR");
   if (!qrRegion) qrRegion = document.getElementById("qrRegion");
 }
-
 async function pickBestCamera(cameras) {
   if (!cameras || !cameras.length) throw new Error("No hay cámaras disponibles");
   const back = cameras.find(c => /back|rear|environment|trasera/i.test(c.label));
   return (back || cameras[0]).id;
 }
-
 // mode: 'text' | 'rack' | 'pos'
-async function openQrScanner(targetInput, mode = 'text') {
+async function openQrScanner(targetInput, mode='text') {
   ensureQrDomRefs();
-  if (!window.Html5Qrcode) { alert("No se encontró el lector QR."); return; }
+  if (!assertCameraAvailable()) return;
 
   qrTargetInput = targetInput;
   qrModal.showModal();
@@ -177,7 +192,7 @@ async function openQrScanner(targetInput, mode = 'text') {
     const onSuccess = (decodedText) => {
       let v = (decodedText || "").trim();
       if (mode === 'rack') v = autoformatRack(v);
-      if (mode === 'pos') v = autoformatPos(v);
+      if (mode === 'pos')  v = autoformatPos(v);
 
       if (qrTargetInput) {
         qrTargetInput.value = v;
@@ -192,10 +207,9 @@ async function openQrScanner(targetInput, mode = 'text') {
   } catch (err) {
     console.error(err);
     alert("No se pudo iniciar la cámara. Usa HTTPS o concede permisos.");
-    try { await stopQrScanner(); } catch { }
+    try { await stopQrScanner(); } catch {}
   }
 }
-
 async function stopQrScanner() {
   try {
     if (qrReader && qrReader._isScanning) {
@@ -207,59 +221,52 @@ async function stopQrScanner() {
     qrTargetInput = null;
   }
 }
-
-// Botón cancelar del modal QR
 document.getElementById("btnQrCancel")?.addEventListener("click", () => { stopQrScanner(); });
 
 // ====== Helper visual para tabla (OK / Dañado / —) ======
 function damageCellHTML(val) {
-  if (val === true) return `<td class="busy">Dañado</td>`;
+  if (val === true)  return `<td class="busy">Dañado</td>`;
   if (val === false) return `<td class="ok">OK</td>`;
   return `<td>—</td>`;
 }
 
 // ====== Último formulario por línea ======
-function loadLastByLine() { return loadJSON(LS_KEYS.FORM_LAST_BY_LINE, { 1: null, 2: null, 3: null, 4: null }); }
+function loadLastByLine() { return loadJSON(LS_KEYS.FORM_LAST_BY_LINE, {1:null,2:null,3:null,4:null}); }
 function saveLastByLine(map) { safeSave(LS_KEYS.FORM_LAST_BY_LINE, map); }
-
 function prefillFromLast(linea) {
   const map = loadLastByLine();
   const last = map[linea] || null;
   if (!last) return;
-  inputOperador.value = last.operador || "";
+  inputOperador.value   = last.operador || "";
   inputCodigoSeco.value = last.codigoSeco || "";
-  inputFirmando.value = last.firmando || "— Se autocompleta al validar —";
-  inputCantidad.value = last.cantidad || "";
-  inputNumRack.value = last.numRack || "";
-  inputPosRack.value = last.posRack || "";
+  inputFirmando.value   = last.firmando || "— Se autocompleta al validar —";
+  inputCantidad.value   = last.cantidad || "";
+  inputNumRack.value    = last.numRack || "";
+  inputPosRack.value    = last.posRack || "";
 }
 
 // ====== Persistencia de pestañas ======
-function loadTabs() { return loadJSON(TAB_KEY, { retirar: 'sal1', salidas: 'salout1' }); }
+function loadTabs() { return loadJSON(TAB_KEY, { retirar:'sal1', salidas:'salout1' }); }
 function saveTabs(v) { safeSave(TAB_KEY, v); }
-
-// Restaurar pestañas en load
-(function restoreTabs() {
+(function restoreTabs(){
   const st = loadTabs();
   document.getElementById(st.retirar)?.setAttribute("checked", "checked");
   document.getElementById(st.salidas)?.setAttribute("checked", "checked");
 })();
-
-// Escuchar cambios de pestañas
-["sal1", "sal2", "sal3"].forEach(id => {
-  document.getElementById(id)?.addEventListener("change", () => {
+["sal1","sal2","sal3"].forEach(id=>{
+  document.getElementById(id)?.addEventListener("change", ()=>{
     const st = loadTabs(); st.retirar = id; saveTabs(st);
   });
 });
-["salout1", "salout2", "salout3"].forEach(id => {
-  document.getElementById(id)?.addEventListener("change", () => {
+["salout1","salout2","salout3"].forEach(id=>{
+  document.getElementById(id)?.addEventListener("change", ()=>{
     const st = loadTabs(); st.salidas = id; saveTabs(st);
   });
 });
 
 // ====== Listeners de formulario/inputs ======
-document.querySelectorAll('input[name="linea"]').forEach(r => {
-  r.addEventListener("change", () => {
+document.querySelectorAll('input[name="linea"]').forEach(r=>{
+  r.addEventListener("change", ()=>{
     const linea = getLineaSeleccionada();
     inputOperador.value = "";
     inputCodigoSeco.value = "";
@@ -270,25 +277,17 @@ document.querySelectorAll('input[name="linea"]').forEach(r => {
     prefillFromLast(linea);
   });
 });
-
-// Prefill inicial
-(function prefillInit() {
+(function prefillInit(){
   const linea = getLineaSeleccionada();
   if (linea) prefillFromLast(linea);
 })();
-
-// Autocompletar “Firmando el acumulador”
 inputCodigoSeco.addEventListener("input", () => {
   inputFirmando.value = inputCodigoSeco.value ? `Acum: ${inputCodigoSeco.value.toUpperCase()}` : "— Se autocompleta al validar —";
 });
-
-// Normalización en blur
 inputNumRack.addEventListener("blur", () => { inputNumRack.value = autoformatRack(inputNumRack.value); });
 inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos(inputPosRack.value); });
-
-// Normalización “en vivo” (útil al pegar de QR)
-[inputNumRack, inputPosRack].forEach(inp => {
-  inp.addEventListener("input", () => {
+[inputNumRack, inputPosRack].forEach(inp=>{
+  inp.addEventListener("input", ()=>{
     const v = (inp === inputNumRack) ? autoformatRack(inp.value) : autoformatPos(inp.value);
     if (/^Rack\d{0,3}$/.test(v) || /^P\d{0,3}$/.test(v)) inp.value = v;
   });
@@ -298,14 +297,14 @@ inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos
 form.addEventListener("submit", (e) => {
   e.preventDefault();
 
-  const linea = getLineaSeleccionada();
-  const operador = inputOperador.value.trim();
-  const codigoSeco = inputCodigoSeco.value.trim();
-  const firmando = inputFirmando.value.trim();
-  const cantidad = Number.parseInt(inputCantidad.value || "0", 10);
+  const linea     = getLineaSeleccionada();
+  const operador  = inputOperador.value.trim();
+  const codigoSeco= inputCodigoSeco.value.trim();
+  const firmando  = inputFirmando.value.trim();
+  const cantidad  = Number.parseInt(inputCantidad.value || "0", 10);
 
   // Normalizar antes de validar/consultar enUso
-  let rack = autoformatRack(inputNumRack.value);
+  let rack     = autoformatRack(inputNumRack.value);
   let posicion = autoformatPos(inputPosRack.value);
   inputNumRack.value = rack;
   inputPosRack.value = posicion;
@@ -320,32 +319,20 @@ form.addEventListener("submit", (e) => {
     inputCantidad.focus();
     return;
   }
-  if (!RX_PATTERN.test(rack)) {
-    alert('El número de rack debe tener formato "Rack###", ej. "Rack001".');
-    inputNumRack.focus(); return;
-  }
-  if (!POS_PATTERN.test(posicion)) {
-    alert('La posición debe tener formato "P###", ej. "P002".');
-    inputPosRack.focus(); return;
-  }
+  if (!RX_PATTERN.test(rack)) { alert('El número de rack debe tener formato "Rack###", ej. "Rack001".'); inputNumRack.focus(); return; }
+  if (!POS_PATTERN.test(posicion)) { alert('La posición debe tener formato "P###", ej. "P002".'); inputPosRack.focus(); return; }
 
   // Validación de ocupación
   reconcileEnUso();
-  if (enUso.posiciones[posicion]) {
-    alert(`La posición ${posicion} ya está en uso. Elige otra.`);
-    inputPosRack.focus(); return;
-  }
-  if (enUso.racks[rack]) {
-    alert(`El rack ${rack} ya está en uso. Elige otro.`);
-    inputNumRack.focus(); return;
-  }
+  if (enUso.posiciones[posicion]) { alert(`La posición ${posicion} ya está en uso. Elige otra.`); inputPosRack.focus(); return; }
+  if (enUso.racks[rack])         { alert(`El rack ${rack} ya está en uso. Elige otro.`);       inputNumRack.focus(); return; }
 
-  // 1) Guardar “último formulario” por línea (dejando rack/pos vacíos)
+  // 1) Guardar “último formulario” por línea (limpiando rack/pos)
   const map = loadLastByLine();
   map[linea] = { linea, operador, codigoSeco, firmando, cantidad, numRack: "", posRack: "" };
   saveLastByLine(map);
 
-  // 2) Enviar a Controlistas (pendientes) con trazabilidad
+  // 2) Enviar a Controlistas (pendientes)
   const nuevo = {
     id: crypto.randomUUID(),
     linea, operador, codigoSeco, firmando, cantidad,
@@ -376,7 +363,7 @@ form.addEventListener("submit", (e) => {
   inputNumRack.value = "";
   inputPosRack.value = "";
 
-  renderAll();
+  try { renderAll(); } catch(e) { console.error("Error en renderAll()", e); }
   alert("Registro guardado y enviado a Controlistas.");
 });
 
@@ -411,15 +398,13 @@ function handleRetirar(item, linea) {
   // Quitar de retirar
   const arr = retirarListas[linea] || [];
   const idx = arr.findIndex(x => x.posicion === item.posicion && x.rack === item.rack);
-  if (idx >= 0) { arr.splice(idx, 1); retirarListas[linea] = arr; safeSave(LS_KEYS.RETIRAR, retirarListas); }
+  if (idx >= 0) { arr.splice(idx,1); retirarListas[linea] = arr; safeSave(LS_KEYS.RETIRAR, retirarListas); }
 
-  renderAll();
+  try { renderAll(); } catch(e) { console.error("Error en renderAll()", e); }
 }
 
 // ====== Entrada / Salida ======
-
-// Click en fila para ver detalle (ignorando clicks en botones)
-function attachRowInfoHandlers(tbody, lista) {
+function attachRowInfoHandlers(tbody, lista){
   tbody.querySelectorAll("tr").forEach((tr, i) => {
     tr.addEventListener("click", (ev) => {
       if (ev.target.closest("button")) return;
@@ -463,7 +448,7 @@ function openEntradaModal(reg) {
   inputConfirmRack.value = "";
 
   modalEntrada.showModal();
-  setTimeout(() => inputPatineroEntrada?.focus(), 50);
+  setTimeout(()=> inputPatineroEntrada?.focus(), 50);
 }
 
 // Delegación: botones “Línea 1/2/3/4”
@@ -476,12 +461,11 @@ confirmLineaContainer?.addEventListener("click", (e) => {
   inputConfirmLineaValue.value = String(lineaSel);
   entradaLineaConfirmada = true;
 
-  // Visual activo
   confirmLineaContainer.querySelectorAll("button[data-linea]")
     .forEach(b => b.classList.toggle("active", b === btn));
 });
 
-// Botón “Escanear QR” del rack en modal de ENTRADA (lector real)
+// Botón “Escanear QR” del rack en modal de ENTRADA
 btnScanRack?.addEventListener("click", () => openQrScanner(inputConfirmRack, 'rack'));
 
 // Guardar ENTRADA
@@ -491,39 +475,27 @@ formEntrada.addEventListener("click", (e) => {
 
   if (btn.value === "save" && currentSalida) {
     const byName = inputPatineroEntrada.value.trim() || CURRENT_USER?.name || "";
-    const byId = CURRENT_USER?.id || null;
+    const byId   = CURRENT_USER?.id || null;
 
-    // 1) Línea confirmada y coincidente
+    // Línea confirmada y coincidente
     const lineaSeleccionada = parseInt(inputConfirmLineaValue.value, 10);
     if (!entradaLineaConfirmada || lineaSeleccionada !== currentSalida.linea) {
       alert(`Debes seleccionar la línea correcta (Línea ${currentSalida.linea}).`);
       return;
     }
 
-    // 2) Confirmación de Rack obligatoria y coincidente
+    // Confirmación de Rack obligatoria y coincidente
     let confirmRack = autoformatRack(inputConfirmRack.value.trim());
-    if (!confirmRack) {
-      alert("Debes confirmar el Rack (ej. Rack001).");
-      inputConfirmRack.focus(); return;
-    }
+    if (!confirmRack) { alert("Debes confirmar el Rack (ej. Rack001)."); inputConfirmRack.focus(); return; }
     inputConfirmRack.value = confirmRack;
-    if (confirmRack !== currentSalida.rack) {
-      alert(`El Rack confirmado (${confirmRack}) no coincide con el asignado (${currentSalida.rack}).`);
-      inputConfirmRack.focus(); return;
-    }
+    if (confirmRack !== currentSalida.rack) { alert(`El Rack confirmado (${confirmRack}) no coincide con el asignado (${currentSalida.rack}).`); inputConfirmRack.focus(); return; }
 
-    // Guardar entrada
-    currentSalida.entrada = {
-      byId, byName,
-      confirmLinea: currentSalida.linea,
-      confirmRack,
-      at: nowISO()
-    };
+    currentSalida.entrada = { byId, byName, confirmLinea: currentSalida.linea, confirmRack, at: nowISO() };
     currentSalida.entradaGuardadaEn = Date.now();
     safeSave(LS_KEYS.SALIDAS, salidasListas);
 
     modalEntrada.close();
-    renderAll();
+    try { renderAll(); } catch(e2){ console.error("renderAll() tras entrada", e2); }
   }
 
   if (btn.value === "cancel") modalEntrada.close();
@@ -532,11 +504,11 @@ formEntrada.addEventListener("click", (e) => {
 // Habilitar “Dar salida” tras 1 minuto
 function canShowDarSalida(reg) {
   if (!reg.entradaGuardadaEn) return false;
-  return (Date.now() - reg.entradaGuardadaEn) >= 60 * 1000; // 1 min
+  return (Date.now() - reg.entradaGuardadaEn) >= 60 * 1000;
 }
 function secondsToEnable(reg) {
   if (!reg.entradaGuardadaEn) return 60;
-  const diff = 60 - Math.floor((Date.now() - reg.entradaGuardadaEn) / 1000);
+  const diff = 60 - Math.floor((Date.now() - reg.entradaGuardadaEn)/1000);
   return Math.max(0, diff);
 }
 
@@ -546,7 +518,7 @@ function openSalidaModal(reg) {
   salidaResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
   inputValidacionPatinero.value = CURRENT_USER?.name || "";
   modalSalida.showModal();
-  setTimeout(() => inputValidacionPatinero?.focus(), 50);
+  setTimeout(()=> inputValidacionPatinero?.focus(), 50);
 }
 
 // Guardar SALIDA
@@ -556,10 +528,9 @@ formSalida.addEventListener("click", (e) => {
 
   if (btn.value === "save" && currentSalida) {
     const byName = inputValidacionPatinero.value.trim() || CURRENT_USER?.name || "";
-    const byId = CURRENT_USER?.id || null;
+    const byId   = CURRENT_USER?.id || null;
     if (!byName) return;
 
-    // Guardar salida
     currentSalida.salida = { byId, byName, at: nowISO() };
 
     // Liberar recursos
@@ -567,14 +538,14 @@ formSalida.addEventListener("click", (e) => {
     delete enUso.racks[currentSalida.rack];
     safeSave(LS_KEYS.EN_USO, enUso);
 
-    // Eliminar de la lista de salidas
+    // Eliminar de la lista
     const lista = salidasListas[currentSalida.linea] || [];
-    const idx = lista.findIndex(x => x.id === currentSalida.id);
-    if (idx >= 0) { lista.splice(idx, 1); salidasListas[currentSalida.linea] = lista; }
+    const idx   = lista.findIndex(x => x.id === currentSalida.id);
+    if (idx >= 0) { lista.splice(idx,1); salidasListas[currentSalida.linea] = lista; }
     safeSave(LS_KEYS.SALIDAS, salidasListas);
 
     modalSalida.close();
-    renderAll();
+    try { renderAll(); } catch(e2){ console.error("renderAll() tras salida", e2); }
   }
 
   if (btn.value === "cancel") modalSalida.close();
@@ -582,6 +553,7 @@ formSalida.addEventListener("click", (e) => {
 
 // ====== Render ======
 function renderRetirar() {
+  if (!tablaRetirar1 || !tablaRetirar2 || !tablaRetirar3) return;
   function fill(tbody, lista, linea) {
     tbody.innerHTML = "";
     if (!lista || !lista.length) {
@@ -599,17 +571,16 @@ function renderRetirar() {
       tbody.appendChild(tr);
     });
   }
-  fill(tablaRetirar1, retirarListas[1] || [], 1);
-  fill(tablaRetirar2, retirarListas[2] || [], 2);
-  fill(tablaRetirar3, retirarListas[3] || [], 3);
+  fill(tablaRetirar1, retirarListas[1]||[], 1);
+  fill(tablaRetirar2, retirarListas[2]||[], 2);
+  fill(tablaRetirar3, retirarListas[3]||[], 3);
 }
 
 function renderSalidas() {
+  if (!tablaSalidas1 || !tablaSalidas2 || !tablaSalidas3) return;
   function fill(tbody, lista) {
     tbody.innerHTML = "";
-
-    // Registro activo (con entrada y sin salida) en esta línea
-    const activo = (lista || []).find(r => r.entrada && !r.salida);
+    const activo   = (lista || []).find(r => r.entrada && !r.salida);
     const activoId = activo?.id || null;
 
     if (!lista || !lista.length) {
@@ -622,10 +593,9 @@ function renderSalidas() {
       tr.innerHTML = `<td>${reg.posicion}</td><td>${reg.rack}</td><td></td><td></td>`;
 
       if (activoId && reg.id !== activoId) {
-        // Mientras otro esté activo, este no muestra botones
+        // Otro activo en esta línea: sin botones
       } else {
         if (!reg.entrada) {
-          // No hay activo: puede dar entrada
           if (!activoId) {
             const btnEntrada = document.createElement("button");
             btnEntrada.type = "button";
@@ -635,7 +605,6 @@ function renderSalidas() {
             tr.children[2].appendChild(btnEntrada);
           }
         } else {
-          // Es el activo de la línea: mostrar salida (o cuenta regresiva)
           const btnSalida = document.createElement("button");
           btnSalida.type = "button";
           const left = secondsToEnable(reg);
@@ -658,13 +627,13 @@ function renderSalidas() {
 
     attachRowInfoHandlers(tbody, lista);
   }
-
-  fill(tablaSalidas1, salidasListas[1] || []);
-  fill(tablaSalidas2, salidasListas[2] || []);
-  fill(tablaSalidas3, salidasListas[3] || []);
+  fill(tablaSalidas1, salidasListas[1]||[]);
+  fill(tablaSalidas2, salidasListas[2]||[]);
+  fill(tablaSalidas3, salidasListas[3]||[]);
 }
 
 function renderPosiciones() {
+  if (!tablaPosiciones) return;
   tablaPosiciones.innerHTML = "";
   for (let i = 1; i <= 450; i++) {
     const p = `P${pad3(i)}`;
@@ -672,9 +641,9 @@ function renderPosiciones() {
 
     const det = statusPosDet[p] || {};
     const tdActuador = damageCellHTML(det.actuador);
-    const tdTarjeta = damageCellHTML(det.tarjeta);
-    const tdAbraz = damageCellHTML(det.abrazaderas);
-    const tdCable = damageCellHTML(det.cable_bajada);
+    const tdTarjeta  = damageCellHTML(det.tarjeta);
+    const tdAbraz    = damageCellHTML(det.abrazaderas);
+    const tdCable    = damageCellHTML(det.cable_bajada);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -691,6 +660,7 @@ function renderPosiciones() {
 }
 
 function renderRacks() {
+  if (!tablaRacks) return;
   tablaRacks.innerHTML = "";
   for (let i = 1; i <= 435; i++) {
     const r = `Rack${pad3(i)}`;
@@ -698,8 +668,8 @@ function renderRacks() {
 
     const det = statusRacksDet[r] || {};
     const tdSoporte = damageCellHTML(det.soporte_dren);
-    const tdPorta = damageCellHTML(det.porta_manguera);
-    const tdTina = damageCellHTML(det.tina);
+    const tdPorta   = damageCellHTML(det.porta_manguera);
+    const tdTina    = damageCellHTML(det.tina);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -714,12 +684,12 @@ function renderRacks() {
 }
 
 // Contadores por línea en encabezados
-function updateCountersUI() {
+function updateCountersUI(){
   const hRet = document.querySelector('#retirar .panel-header h2');
   const hSal = document.querySelector('#salidas .panel-header h2');
 
-  const r1 = (retirarListas[1] || []).length, r2 = (retirarListas[2] || []).length, r3 = (retirarListas[3] || []).length;
-  const s1 = (salidasListas[1] || []).length, s2 = (salidasListas[2] || []).length, s3 = (salidasListas[3] || []).length;
+  const r1=(retirarListas[1]||[]).length, r2=(retirarListas[2]||[]).length, r3=(retirarListas[3]||[]).length;
+  const s1=(salidasListas[1]||[]).length, s2=(salidasListas[2]||[]).length, s3=(salidasListas[3]||[]).length;
 
   if (hRet) hRet.textContent = `Retirar Racks — L1:${r1} • L2:${r2} • L3:${r3}`;
   if (hSal) hSal.textContent = `Salidas — L1:${s1} • L2:${s2} • L3:${s3}`;
@@ -734,28 +704,27 @@ function renderAll() {
 }
 
 // ====== Inicialización de render y timers ======
-renderAll();
-// Refresco ágil para la cuenta regresiva de salida
-setInterval(() => renderSalidas(), 1000);
+try { renderAll(); }
+catch (e) { console.error("Error en renderAll()", e); alert("Ocurrió un error al dibujar las tablas. Revisa la consola."); }
 
-// ====== Sección Comentarios (placeholder) ======
-document.getElementById("formComentario")?.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const txt = (document.getElementById("comentario")?.value || "").trim();
-  if (!txt) return;
-  const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
-  const user = JSON.parse(localStorage.getItem("CURRENT_USER") || "null");
-  arr.push({ by: user?.name || "Patinero", text: txt, at: new Date().toISOString() });
-  localStorage.setItem("comentarios", JSON.stringify(arr));
-  e.target.reset();
-  alert("Comentario enviado.");
+// Refresco ágil para la cuenta regresiva de salida
+setInterval(() => {
+  try { renderSalidas(); }
+  catch (e) { console.error("Error en renderSalidas()", e); }
+}, 1000);
+
+// Re-render en cambio de hash (fallback útil)
+window.addEventListener("hashchange", () => {
+  const id = location.hash.replace("#","");
+  if (id === "racks" || id === "posiciones" || id === "salidas" || id === "retirar") {
+    try { renderAll(); } catch(e){ console.error("renderAll() on hashchange", e); }
+  }
 });
 
-// ====== Botones de escaneo QR en el formulario principal ======
-const btnScanSeco = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
+// ====== Botones de escaneo QR (form principal) ======
+const btnScanSeco    = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
 const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
 const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
-
-btnScanSeco?.addEventListener("click", () => openQrScanner(inputCodigoSeco, 'text'));
+btnScanSeco?.addEventListener("click",    () => openQrScanner(inputCodigoSeco, 'text'));
 btnScanNumRack?.addEventListener("click", () => openQrScanner(inputNumRack, 'rack'));
 btnScanPosRack?.addEventListener("click", () => openQrScanner(inputPosRack, 'pos'));
