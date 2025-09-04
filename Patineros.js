@@ -1,14 +1,14 @@
 // ================================
-// Patineros.js (lector de código de barras y sin alert())
+// Patineros.js (lector de barras libre + validación al guardar)
 // ================================
 
 // ====== Claves de almacenamiento ======
 const LS_KEYS = {
   FORM_LAST_BY_LINE: "patineros_form_last_by_line",
   CONTROLISTAS: "controlistas_pendientes",
-  EN_USO: "en_uso",              // { posiciones:{}, racks:{} }
-  RETIRAR: "retirar_listas",     // { 1:[...], 2:[...], 3:[...] }
-  SALIDAS: "salidas_listas",     // { 1:[...], 2:[...], 3:[...] }
+  EN_USO: "en_uso",             // { posiciones:{}, racks:{} }
+  RETIRAR: "retirar_listas",    // { 1:[...], 2:[...], 3:[...] }
+  SALIDAS: "salidas_listas",    // { 1:[...], 2:[...], 3:[...] }
   STATUS_POS_DET: "status_posiciones_detalle",
   STATUS_RACKS_DET: "status_racks_detalle"
 };
@@ -24,24 +24,8 @@ function safeSave(key, value) {
   try { saveJSON(key, value); }
   catch (e) {
     console.error("Storage lleno o inaccesible", e);
-    showToast("No se pudo guardar localmente. Libera espacio o revisa permisos.", 'err', 3000);
+    alert("No se pudo guardar datos locales (almacenamiento lleno o bloqueado). Libera espacio y reintenta.");
   }
-}
-
-// ====== Helpers de UI: toast + invalidaciones (sin alert) ======
-function showToast(msg, type='ok', ms=1800){
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(()=> t.remove(), ms);
-}
-function invalid(input, message){
-  if (!input) return showToast(message, 'warn');
-  input.setCustomValidity(message);
-  input.reportValidity();
-  input.focus();
-  setTimeout(()=> input.setCustomValidity(''), 2000);
 }
 
 // ====== Usuario actual (proveniente del login) ======
@@ -60,6 +44,7 @@ const statusRacksDet = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});
 function reconcileEnUso() {
   const nuevo = { posiciones: {}, racks: {} };
 
+  // Ocupan recursos los que están en SALIDAS y no tienen salida
   const s = loadJSON(LS_KEYS.SALIDAS, { 1: [], 2: [], 3: [] });
   [1, 2, 3].forEach(l => {
     (s[l] || []).forEach(reg => {
@@ -70,6 +55,7 @@ function reconcileEnUso() {
     });
   });
 
+  // También ocupan los que están en RETIRAR
   const r = loadJSON(LS_KEYS.RETIRAR, { 1: [], 2: [], 3: [] });
   [1, 2, 3].forEach(l => {
     (r[l] || []).forEach(item => {
@@ -82,6 +68,7 @@ function reconcileEnUso() {
   enUso.racks = nuevo.racks;
   safeSave(LS_KEYS.EN_USO, enUso);
 }
+// Ejecutar reconciliación al cargar
 reconcileEnUso();
 
 // ====== DOM ======
@@ -167,6 +154,7 @@ function ensureBarDomRefs() {
   if (!barRegion) barRegion = document.getElementById("barRegion");
 }
 
+// Selección de cámara trasera si existe
 async function pickBestDeviceId() {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const vids = devices.filter(d => d.kind === "videoinput");
@@ -178,7 +166,7 @@ async function pickBestDeviceId() {
 // mode: 'text' | 'rack' | 'pos'
 async function openBarScanner(targetInput, mode = 'text') {
   ensureBarDomRefs();
-  if (!window.Quagga) { showToast("No se encontró el lector de barras.", 'err'); return; }
+  if (!window.Quagga) { alert("No se encontró el lector de barras."); return; }
 
   barTargetInput = targetInput;
   barModal.showModal();
@@ -186,6 +174,7 @@ async function openBarScanner(targetInput, mode = 'text') {
   try {
     const deviceId = await pickBestDeviceId();
 
+    // Configuración de Quagga
     const config = {
       inputStream: {
         type: "LiveStream",
@@ -209,9 +198,20 @@ async function openBarScanner(targetInput, mode = 'text') {
 
     const onDetected = (result) => {
       if (!result || !result.codeResult || !result.codeResult.code) return;
-      let v = (result.codeResult.code || "").trim();
-      if (mode === 'rack') v = autoformatRack(v);
-      if (mode === 'pos')  v = autoformatPos(v);
+
+      // 1) Tomar el valor tal cual (NO validar aquí)
+      let raw = (result.codeResult.code || "").trim();
+      let v = raw;
+
+      // 2) Si el modo sugiere rack/pos, intentar autoformatear SOLO si luce como esos patrones
+      if (mode === 'rack') {
+        const auto = autoformatRack(raw);
+        if (/^Rack\d{1,3}$/.test(auto)) v = auto;
+      } else if (mode === 'pos') {
+        const auto = autoformatPos(raw);
+        if (/^P\d{1,3}$/.test(auto)) v = auto;
+      }
+      // Nota: si no parece Rack/P, dejamos el texto crudo. La validación ocurre al guardar.
 
       if (barTargetInput) {
         barTargetInput.value = v;
@@ -248,6 +248,7 @@ async function stopBarScanner() {
   }
 }
 
+// Botón cancelar del modal de barras
 document.getElementById("btnBarCancel")?.addEventListener("click", () => { stopBarScanner(); });
 
 // ====== Helper visual para tabla (OK / Dañado / —) ======
@@ -277,12 +278,14 @@ function prefillFromLast(linea) {
 function loadTabs() { return loadJSON(TAB_KEY, { retirar: 'sal1', salidas: 'salout1' }); }
 function saveTabs(v) { safeSave(TAB_KEY, v); }
 
+// Restaurar pestañas en load
 (function restoreTabs() {
   const st = loadTabs();
   document.getElementById(st.retirar)?.setAttribute("checked", "checked");
   document.getElementById(st.salidas)?.setAttribute("checked", "checked");
 })();
 
+// Escuchar cambios de pestañas
 ["sal1", "sal2", "sal3"].forEach(id => {
   document.getElementById(id)?.addEventListener("change", () => {
     const st = loadTabs(); st.retirar = id; saveTabs(st);
@@ -308,6 +311,7 @@ document.querySelectorAll('input[name="linea"]').forEach(r => {
   });
 });
 
+// Prefill inicial
 (function prefillInit() {
   const linea = getLineaSeleccionada();
   if (linea) prefillFromLast(linea);
@@ -318,9 +322,11 @@ inputCodigoSeco.addEventListener("input", () => {
   inputFirmando.value = inputCodigoSeco.value ? `Acum: ${inputCodigoSeco.value.toUpperCase()}` : "— Se autocompleta al validar —";
 });
 
-// Normalización
+// Normalización en blur
 inputNumRack.addEventListener("blur", () => { inputNumRack.value = autoformatRack(inputNumRack.value); });
 inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos(inputPosRack.value); });
+
+// Normalización “en vivo” (útil al pegar de escáner)
 [inputNumRack, inputPosRack].forEach(inp => {
   inp.addEventListener("input", () => {
     const v = (inp === inputNumRack) ? autoformatRack(inp.value) : autoformatPos(inp.value);
@@ -338,42 +344,48 @@ form.addEventListener("submit", (e) => {
   const firmando = inputFirmando.value.trim();
   const cantidad = Number.parseInt(inputCantidad.value || "0", 10);
 
+  // Normalizar antes de validar/consultar enUso
   let rack = autoformatRack(inputNumRack.value);
   let posicion = autoformatPos(inputPosRack.value);
   inputNumRack.value = rack;
   inputPosRack.value = posicion;
 
+  // Validaciones (AQUÍ sí exigimos formatos)
   if (!linea || !operador || !codigoSeco || !rack || !posicion) {
-    showToast("Completa todos los campos del registro.", 'warn');
+    alert("Completa todos los campos del registro.");
     return;
   }
   if (!Number.isInteger(cantidad) || cantidad <= 0) {
-    invalid(inputCantidad, "La cantidad debe ser un entero mayor que 0.");
+    alert("La cantidad debe ser un entero mayor que 0.");
+    inputCantidad.focus();
     return;
   }
   if (!RX_PATTERN.test(rack)) {
-    invalid(inputNumRack, 'Formato inválido. Debe ser: Rack### (ej. Rack001).');
-    return;
+    alert('El número de rack debe tener formato "Rack###", ej. "Rack001".');
+    inputNumRack.focus(); return;
   }
   if (!POS_PATTERN.test(posicion)) {
-    invalid(inputPosRack, 'Formato inválido. Debe ser: P### (ej. P002).');
-    return;
+    alert('La posición debe tener formato "P###", ej. "P002".');
+    inputPosRack.focus(); return;
   }
 
+  // Validación de ocupación
   reconcileEnUso();
   if (enUso.posiciones[posicion]) {
-    invalid(inputPosRack, `La posición ${posicion} ya está en uso. Elige otra.`);
-    return;
+    alert(`La posición ${posicion} ya está en uso. Elige otra.`);
+    inputPosRack.focus(); return;
   }
   if (enUso.racks[rack]) {
-    invalid(inputNumRack, `El rack ${rack} ya está en uso. Elige otro.`);
-    return;
+    alert(`El rack ${rack} ya está en uso. Elige otro.`);
+    inputNumRack.focus(); return;
   }
 
+  // 1) Guardar “último formulario” por línea (dejando rack/pos vacíos)
   const map = loadLastByLine();
   map[linea] = { linea, operador, codigoSeco, firmando, cantidad, numRack: "", posRack: "" };
   saveLastByLine(map);
 
+  // 2) Enviar a Controlistas (pendientes) con trazabilidad
   const nuevo = {
     id: crypto.randomUUID(),
     linea, operador, codigoSeco, firmando, cantidad,
@@ -387,10 +399,12 @@ form.addEventListener("submit", (e) => {
   controlistasPend.push(nuevo);
   safeSave(LS_KEYS.CONTROLISTAS, controlistasPend);
 
+  // 3) Marcar EN USO
   enUso.posiciones[posicion] = true;
   enUso.racks[rack] = true;
   safeSave(LS_KEYS.EN_USO, enUso);
 
+  // 4) Añadir a RETIRAR
   (retirarListas[linea] = retirarListas[linea] || []).push({
     posicion, rack, linea, refId: nuevo.id,
     operador: nuevo.operador, empleado: nuevo.registradoPorId,
@@ -398,11 +412,12 @@ form.addEventListener("submit", (e) => {
   });
   safeSave(LS_KEYS.RETIRAR, retirarListas);
 
+  // 5) Limpiar rack/pos en la UI actual
   inputNumRack.value = "";
   inputPosRack.value = "";
 
   renderAll();
-  showToast("Registro guardado y enviado a Controlistas.", 'ok');
+  alert("Registro guardado y enviado a Controlistas.");
 });
 
 // ====== Retirar -> mover a Salidas ======
@@ -421,17 +436,19 @@ function handleRetirar(item, linea) {
     cantidad: item.cantidad ?? null,
     creadoEn: item.creadoEn || nowISO(),
     registradoPorNombre: item.registradoPorNombre || null,
-    entrada: null,
-    salida: null,
+    entrada: null,            // {byId, byName, confirmLinea, confirmRack, at}
+    salida: null,             // {byId, byName, at}
     entradaGuardadaEn: null
   };
 
+  // Evitar duplicados en la misma línea (rack+pos sin salida)
   const yaExiste = (salidasListas[linea] || []).some(r => r.rack === item.rack && r.posicion === item.posicion && !r.salida);
   if (!yaExiste) {
     (salidasListas[linea] = salidasListas[linea] || []).push(registro);
     safeSave(LS_KEYS.SALIDAS, salidasListas);
   }
 
+  // Quitar de retirar
   const arr = retirarListas[linea] || [];
   const idx = arr.findIndex(x => x.posicion === item.posicion && x.rack === item.rack);
   if (idx >= 0) { arr.splice(idx, 1); retirarListas[linea] = arr; safeSave(LS_KEYS.RETIRAR, retirarListas); }
@@ -441,6 +458,7 @@ function handleRetirar(item, linea) {
 
 // ====== Entrada / Salida ======
 
+// Click en fila para ver detalle (ignorando clicks en botones)
 function attachRowInfoHandlers(tbody, lista) {
   tbody.querySelectorAll("tr").forEach((tr, i) => {
     tr.addEventListener("click", (ev) => {
@@ -465,21 +483,30 @@ function attachRowInfoHandlers(tbody, lista) {
   });
 }
 
+// Abrir modal ENTRADA
 function openEntradaModal(reg) {
   currentSalida = reg;
+
+  // Reset confirmación de línea
   entradaLineaConfirmada = false;
   inputConfirmLineaValue.value = "";
   confirmLineaContainer?.querySelectorAll("button[data-linea]")
     .forEach(b => b.classList.remove("active"));
 
+  // Resumen
   entradaResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
+
+  // Sugerir nombre (editable)
   inputPatineroEntrada.value = CURRENT_USER?.name || "";
+
+  // Limpiar confirmación de rack
   inputConfirmRack.value = "";
 
   modalEntrada.showModal();
   setTimeout(() => inputPatineroEntrada?.focus(), 50);
 }
 
+// Delegación: botones “Línea 1/2/3/4”
 confirmLineaContainer?.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-linea]");
   if (!btn) return;
@@ -489,12 +516,15 @@ confirmLineaContainer?.addEventListener("click", (e) => {
   inputConfirmLineaValue.value = String(lineaSel);
   entradaLineaConfirmada = true;
 
+  // Visual activo
   confirmLineaContainer.querySelectorAll("button[data-linea]")
     .forEach(b => b.classList.toggle("active", b === btn));
 });
 
+// Botón “Escanear código” del rack en modal de ENTRADA
 btnScanRack?.addEventListener("click", () => openBarScanner(inputConfirmRack, 'rack'));
 
+// Guardar ENTRADA
 formEntrada.addEventListener("click", (e) => {
   const btn = e.target;
   if (!(btn instanceof HTMLButtonElement)) return;
@@ -503,23 +533,30 @@ formEntrada.addEventListener("click", (e) => {
     const byName = inputPatineroEntrada.value.trim() || CURRENT_USER?.name || "";
     const byId = CURRENT_USER?.id || null;
 
+    // 1) Línea confirmada y coincidente
     const lineaSeleccionada = parseInt(inputConfirmLineaValue.value, 10);
     if (!entradaLineaConfirmada || lineaSeleccionada !== currentSalida.linea) {
-      showToast(`Selecciona la línea correcta (Línea ${currentSalida.linea}).`, 'warn');
+      alert(`Debes seleccionar la línea correcta (Línea ${currentSalida.linea}).`);
       return;
     }
 
+    // 2) Confirmación de Rack obligatoria y coincidente (AQUÍ sí validar)
     let confirmRack = autoformatRack(inputConfirmRack.value.trim());
     if (!confirmRack) {
-      invalid(inputConfirmRack, "Debes confirmar el Rack (ej. Rack001).");
-      return;
+      alert("Debes confirmar el Rack (ej. Rack001).");
+      inputConfirmRack.focus(); return;
     }
     inputConfirmRack.value = confirmRack;
     if (confirmRack !== currentSalida.rack) {
-      invalid(inputConfirmRack, `No coincide con el asignado (${currentSalida.rack}).`);
-      return;
+      alert(`El Rack confirmado (${confirmRack}) no coincide con el asignado (${currentSalida.rack}).`);
+      inputConfirmRack.focus(); return;
+    }
+    if (!RX_PATTERN.test(confirmRack)) {
+      alert('Formato inválido. Debe ser "Rack###" (ej. Rack001).');
+      inputConfirmRack.focus(); return;
     }
 
+    // Guardar entrada
     currentSalida.entrada = {
       byId, byName,
       confirmLinea: currentSalida.linea,
@@ -536,12 +573,18 @@ formEntrada.addEventListener("click", (e) => {
   if (btn.value === "cancel") modalEntrada.close();
 });
 
+// Habilitar “Dar salida” tras 1 minuto
+function canShowDarSalida(reg) {
+  if (!reg.entradaGuardadaEn) return false;
+  return (Date.now() - reg.entradaGuardadaEn) >= 60 * 1000; // 1 min
+}
 function secondsToEnable(reg) {
   if (!reg.entradaGuardadaEn) return 60;
   const diff = 60 - Math.floor((Date.now() - reg.entradaGuardadaEn) / 1000);
   return Math.max(0, diff);
 }
 
+// Abrir modal SALIDA
 function openSalidaModal(reg) {
   currentSalida = reg;
   salidaResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
@@ -550,6 +593,7 @@ function openSalidaModal(reg) {
   setTimeout(() => inputValidacionPatinero?.focus(), 50);
 }
 
+// Guardar SALIDA
 formSalida.addEventListener("click", (e) => {
   const btn = e.target;
   if (!(btn instanceof HTMLButtonElement)) return;
@@ -559,12 +603,15 @@ formSalida.addEventListener("click", (e) => {
     const byId = CURRENT_USER?.id || null;
     if (!byName) return;
 
+    // Guardar salida
     currentSalida.salida = { byId, byName, at: nowISO() };
 
+    // Liberar recursos
     delete enUso.posiciones[currentSalida.posicion];
     delete enUso.racks[currentSalida.rack];
     safeSave(LS_KEYS.EN_USO, enUso);
 
+    // Eliminar de la lista de salidas
     const lista = salidasListas[currentSalida.linea] || [];
     const idx = lista.findIndex(x => x.id === currentSalida.id);
     if (idx >= 0) { lista.splice(idx, 1); salidasListas[currentSalida.linea] = lista; }
@@ -605,6 +652,7 @@ function renderSalidas() {
   function fill(tbody, lista) {
     tbody.innerHTML = "";
 
+    // Registro activo (con entrada y sin salida) en esta línea
     const activo = (lista || []).find(r => r.entrada && !r.salida);
     const activoId = activo?.id || null;
 
@@ -618,9 +666,10 @@ function renderSalidas() {
       tr.innerHTML = `<td>${reg.posicion}</td><td>${reg.rack}</td><td></td><td></td>`;
 
       if (activoId && reg.id !== activoId) {
-        // Otro registro está activo en la línea
+        // Mientras otro esté activo, este no muestra botones
       } else {
         if (!reg.entrada) {
+          // No hay activo: puede dar entrada
           if (!activoId) {
             const btnEntrada = document.createElement("button");
             btnEntrada.type = "button";
@@ -630,6 +679,7 @@ function renderSalidas() {
             tr.children[2].appendChild(btnEntrada);
           }
         } else {
+          // Es el activo de la línea: mostrar salida (o cuenta regresiva)
           const btnSalida = document.createElement("button");
           btnSalida.type = "button";
           const left = secondsToEnable(reg);
@@ -707,6 +757,7 @@ function renderRacks() {
   }
 }
 
+// Contadores por línea en encabezados
 function updateCountersUI() {
   const hRet = document.querySelector('#retirar .panel-header h2');
   const hSal = document.querySelector('#salidas .panel-header h2');
@@ -726,10 +777,12 @@ function renderAll() {
   updateCountersUI();
 }
 
+// ====== Inicialización de render y timers ======
 renderAll();
+// Refresco ágil para la cuenta regresiva de salida
 setInterval(() => renderSalidas(), 1000);
 
-// ====== Comentarios ======
+// ====== Sección Comentarios (placeholder) ======
 document.getElementById("formComentario")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const txt = (document.getElementById("comentario")?.value || "").trim();
@@ -739,10 +792,10 @@ document.getElementById("formComentario")?.addEventListener("submit", (e) => {
   arr.push({ by: user?.name || "Patinero", text: txt, at: new Date().toISOString() });
   localStorage.setItem("comentarios", JSON.stringify(arr));
   e.target.reset();
-  showToast("Comentario enviado.", 'ok');
+  alert("Comentario enviado.");
 });
 
-// ====== Botones de escaneo ======
+// ====== Botones de escaneo en el formulario principal ======
 const btnScanSeco    = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
 const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
 const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
