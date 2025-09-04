@@ -220,10 +220,6 @@ inputCodigoSeco.addEventListener("input", () => {
   inputFirmando.value = inputCodigoSeco.value ? `Acum: ${inputCodigoSeco.value.toUpperCase()}` : "— Se autocompleta al validar —";
 });
 
-// Normalización en blur
-inputNumRack.addEventListener("blur", () => { inputNumRack.value = autoformatRack(inputNumRack.value); });
-inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos(inputPosRack.value); });
-
 // ====== Guardar Registro ======
 form.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -693,4 +689,5 @@ const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("bu
     b.setAttribute("aria-disabled", "true");
   }
 });
+
 
