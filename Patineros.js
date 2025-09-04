@@ -200,7 +200,7 @@ async function openBarScanner(targetInput, mode = 'text') {
       if (!result || !result.codeResult || !result.codeResult.code) return;
       let v = (result.codeResult.code || "").trim();
       if (mode === 'rack') v = autoformatRack(v);
-      if (mode === 'pos') v = autoformatPos(v);
+      if (mode === 'pos')  v = autoformatPos(v);
 
       if (barTargetInput) {
         barTargetInput.value = v;
@@ -221,7 +221,7 @@ async function openBarScanner(targetInput, mode = 'text') {
     if (barRegion) {
       barRegion.innerHTML = '<div style="color:#fff;padding:.75rem">No se pudo iniciar la cámara. Verifica HTTPS y permisos.</div>';
     }
-    try { await stopBarScanner(); } catch { }
+    try { await stopBarScanner(); } catch {}
   }
 }
 
@@ -781,10 +781,10 @@ document.getElementById("formComentario")?.addEventListener("submit", (e) => {
 });
 
 // ====== Botones de escaneo en el formulario principal ======
-const btnScanSeco = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
+const btnScanSeco    = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
 const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
 const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
 
-btnScanSeco?.addEventListener("click", () => openBarScanner(inputCodigoSeco, 'text'));
-btnScanNumRack?.addEventListener("click", () => openBarScanner(inputNumRack, 'rack'));
-btnScanPosRack?.addEventListener("click", () => openBarScanner(inputPosRack, 'pos'));
+btnScanSeco?.addEventListener("click",    () => openBarScanner(inputCodigoSeco, 'text'));
+btnScanNumRack?.addEventListener("click", () => openBarScanner(inputNumRack,   'rack'));
+btnScanPosRack?.addEventListener("click", () => openBarScanner(inputPosRack,   'pos'));
