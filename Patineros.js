@@ -130,18 +130,45 @@ const POS_PATTERN = /^P\d{3}$/;
 
 function autoformatRack(value) {
   const v = (value || "").trim();
-  if (RX_PATTERN.test(v)) return v;
-  if (/^\d{1,3}$/.test(v)) return `Rack${pad3(parseInt(v, 10))}`;
-  const m = /^Rack(\d{1,3})$/.exec(v);
-  if (m) return `Rack${pad3(parseInt(m[1], 10))}`;
+
+  if (v === "" || /^Rack$/i.test(v)) return v;
+
+  let m = /^Rack(\d{1,3})$/i.exec(v);
+  if (m) {
+    const raw = m[1];
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n === 0) return `Rack${raw}`;
+    return `Rack${String(n).padStart(3, "0")}`;
+  }
+
+  if (/^\d{1,3}$/.test(v)) {
+    const n = parseInt(v, 10);
+    if (!Number.isFinite(n) || n === 0) return v;
+    return `Rack${String(n).padStart(3, "0")}`;
+  }
+
   return v;
 }
+
 function autoformatPos(value) {
   const v = (value || "").trim();
-  if (POS_PATTERN.test(v)) return v;
-  if (/^\d{1,3}$/.test(v)) return `P${pad3(parseInt(v, 10))}`;
-  const m = /^P(\d{1,3})$/.exec(v);
-  if (m) return `P${pad3(parseInt(m[1], 10))}`;
+
+  if (v === "" || /^P$/i.test(v)) return v;
+
+  let m = /^P(\d{1,3})$/i.exec(v);
+  if (m) {
+    const raw = m[1];
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n === 0) return `P${raw}`;
+    return `P${String(n).padStart(3, "0")}`;
+  }
+
+  if (/^\d{1,3}$/.test(v)) {
+    const n = parseInt(v, 10);
+    if (!Number.isFinite(n) || n === 0) return v;
+    return `P${String(n).padStart(3, "0")}`;
+  }
+
   return v;
 }
 
@@ -689,5 +716,6 @@ const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("bu
     b.setAttribute("aria-disabled", "true");
   }
 });
+
 
 
