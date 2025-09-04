@@ -1,14 +1,14 @@
 // ================================
-// Patineros.js (completo con lector de código de barras)
+// Patineros.js (sin escáner; botones de escanear deshabilitados)
 // ================================
 
 // ====== Claves de almacenamiento ======
 const LS_KEYS = {
   FORM_LAST_BY_LINE: "patineros_form_last_by_line",
   CONTROLISTAS: "controlistas_pendientes",
-  EN_USO: "en_usO",              // { posiciones:{}, racks:{} }
-  RETIRAR: "retirar_listas",     // { 1:[...], 2:[...], 3:[...] }
-  SALIDAS: "salidas_listas",     // { 1:[...], 2:[...], 3:[...] }
+  EN_USO: "en_uso",             // { posiciones:{}, racks:{} }  <-- corregido
+  RETIRAR: "retirar_listas",    // { 1:[...], 2:[...], 3:[...] }
+  SALIDAS: "salidas_listas",    // { 1:[...], 2:[...], 3:[...] }
   STATUS_POS_DET: "status_posiciones_detalle",
   STATUS_RACKS_DET: "status_racks_detalle"
 };
@@ -103,7 +103,7 @@ const formSalida = document.getElementById("formSalida");
 const inputPatineroEntrada = document.getElementById("patineroEntrada");
 const inputValidacionPatinero = document.getElementById("validacionPatinero");
 
-// Confirmación de línea y escaneo en modal de entrada
+// Confirmación de línea y botón “Escanear” (lo dejaremos deshabilitado)
 const confirmLineaContainer = document.getElementById("confirmLineaBtns");
 const inputConfirmLineaValue = document.getElementById("confirmLineaValue");
 const inputConfirmRack = document.getElementById("confirmRack");
@@ -145,100 +145,9 @@ function autoformatPos(value) {
   return v;
 }
 
-// ====== Lector de código de BARRAS (Quagga2) ======
-let barModal = null, barRegion = null, barTargetInput = null;
-let barIsRunning = false;
-
-function ensureBarDomRefs() {
-  if (!barModal) barModal = document.getElementById("modalBAR");
-  if (!barRegion) barRegion = document.getElementById("barRegion");
-}
-
-// Selección de cámara trasera si existe
-async function pickBestDeviceId() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const vids = devices.filter(d => d.kind === "videoinput");
-  if (!vids.length) throw new Error("No hay cámaras disponibles");
-  const back = vids.find(v => /back|rear|environment|trasera/i.test(v.label));
-  return (back || vids[0]).deviceId || vids[0].deviceId;
-}
-
-// mode: 'text' | 'rack' | 'pos'
-async function openBarScanner(targetInput, mode = 'text') {
-  ensureBarDomRefs();
-  if (!window.Quagga) { alert("No se encontró el lector de barras."); return; }
-
-  barTargetInput = targetInput;
-  barModal.showModal();
-
-  try {
-    const deviceId = await pickBestDeviceId();
-
-    // Configuración de Quagga
-    const config = {
-      inputStream: {
-        type: "LiveStream",
-        target: barRegion,
-        constraints: {
-          deviceId: deviceId ? { exact: deviceId } : undefined,
-          facingMode: "environment",
-          aspectRatio: { min: 1.3, max: 2.2 }
-        }
-      },
-      decoder: {
-        readers: [
-          "code_128_reader", "ean_reader", "ean_8_reader",
-          "code_39_reader", "itf_reader", "upc_reader", "upc_e_reader"
-        ],
-        multiple: false
-      },
-      locator: { patchSize: "medium", halfSample: true },
-      locate: true
-    };
-
-    const onDetected = (result) => {
-      if (!result || !result.codeResult || !result.codeResult.code) return;
-      let v = (result.codeResult.code || "").trim();
-      if (mode === 'rack') v = autoformatRack(v);
-      if (mode === 'pos')  v = autoformatPos(v);
-
-      if (barTargetInput) {
-        barTargetInput.value = v;
-        barTargetInput.dispatchEvent(new Event("input"));
-        barTargetInput.dispatchEvent(new Event("blur"));
-      }
-      stopBarScanner();
-    };
-
-    Quagga.offDetected(onDetected);
-    Quagga.onDetected(onDetected);
-
-    await Quagga.init(config);
-    Quagga.start();
-    barIsRunning = true;
-  } catch (err) {
-    console.error(err);
-    if (barRegion) {
-      barRegion.innerHTML = '<div style="color:#fff;padding:.75rem">No se pudo iniciar la cámara. Verifica HTTPS y permisos.</div>';
-    }
-    try { await stopBarScanner(); } catch {}
-  }
-}
-
-async function stopBarScanner() {
-  try {
-    if (barIsRunning) {
-      Quagga.stop();
-      barIsRunning = false;
-    }
-  } finally {
-    if (barModal?.open) barModal.close();
-    barTargetInput = null;
-  }
-}
-
-// Botón cancelar del modal de barras
-document.getElementById("btnBarCancel")?.addEventListener("click", () => { stopBarScanner(); });
+// ====== (Eliminado) Código de escaneo ======
+// Se ha retirado Quagga/HTML5 y toda la lógica de cámara.
+// Dejamos los botones de “Escanear” deshabilitados para futura activación.
 
 // ====== Helper visual para tabla (OK / Dañado / —) ======
 function damageCellHTML(val) {
@@ -315,7 +224,7 @@ inputCodigoSeco.addEventListener("input", () => {
 inputNumRack.addEventListener("blur", () => { inputNumRack.value = autoformatRack(inputNumRack.value); });
 inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos(inputPosRack.value); });
 
-// Normalización “en vivo” (útil al pegar de escáner)
+// Normalización “en vivo”
 [inputNumRack, inputPosRack].forEach(inp => {
   inp.addEventListener("input", () => {
     const v = (inp === inputNumRack) ? autoformatRack(inp.value) : autoformatPos(inp.value);
@@ -510,8 +419,7 @@ confirmLineaContainer?.addEventListener("click", (e) => {
     .forEach(b => b.classList.toggle("active", b === btn));
 });
 
-// Botón “Escanear código” del rack en modal de ENTRADA
-btnScanRack?.addEventListener("click", () => openBarScanner(inputConfirmRack, 'rack'));
+// (El botón de escanear en el modal queda deshabilitado más abajo)
 
 // Guardar ENTRADA
 formEntrada.addEventListener("click", (e) => {
@@ -780,11 +688,16 @@ document.getElementById("formComentario")?.addEventListener("submit", (e) => {
   alert("Comentario enviado.");
 });
 
-// ====== Botones de escaneo en el formulario principal ======
+// ====== Botones de “Escanear”: deshabilitados ======
 const btnScanSeco    = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
 const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
 const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
 
-btnScanSeco?.addEventListener("click",    () => openBarScanner(inputCodigoSeco, 'text'));
-btnScanNumRack?.addEventListener("click", () => openBarScanner(inputNumRack,   'rack'));
-btnScanPosRack?.addEventListener("click", () => openBarScanner(inputPosRack,   'pos'));
+// Deshabilitar todos (incluye el del modal)
+[btnScanSeco, btnScanNumRack, btnScanPosRack, btnScanRack].forEach(b => {
+  if (b) {
+    b.disabled = true;
+    b.title = "Escaneo deshabilitado";
+    b.setAttribute("aria-disabled", "true");
+  }
+});
