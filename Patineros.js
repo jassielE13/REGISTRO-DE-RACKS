@@ -520,12 +520,14 @@ formSalida.addEventListener("click", (e) => {
     const byId = CURRENT_USER?.id || null;
     if (!byName) return;
 
-   // Guardar salida
+ // Guardar salida
 currentSalida.salida = { byId, byName, at: nowISO() };
 
-// Liberar recursos (solo RACK; la posición se liberó al Retirar)
+// Liberar recursos
+delete enUso.posiciones[currentSalida.posicion];
 delete enUso.racks[currentSalida.rack];
 safeSave(LS_KEYS.EN_USO, enUso);
+
 
     // Eliminar de la lista de salidas
     const lista = salidasListas[currentSalida.linea] || [];
@@ -724,6 +726,7 @@ const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("bu
     b.setAttribute("aria-disabled", "true");
   }
 });
+
 
 
 
