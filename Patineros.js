@@ -1,14 +1,14 @@
 // ================================
-// Patineros.js (lector de barras libre + validación al guardar)
+// Patineros.js (completo con lector de código de barras)
 // ================================
 
 // ====== Claves de almacenamiento ======
 const LS_KEYS = {
   FORM_LAST_BY_LINE: "patineros_form_last_by_line",
   CONTROLISTAS: "controlistas_pendientes",
-  EN_USO: "en_uso",             // { posiciones:{}, racks:{} }
-  RETIRAR: "retirar_listas",    // { 1:[...], 2:[...], 3:[...] }
-  SALIDAS: "salidas_listas",    // { 1:[...], 2:[...], 3:[...] }
+  EN_USO: "en_usO",              // { posiciones:{}, racks:{} }
+  RETIRAR: "retirar_listas",     // { 1:[...], 2:[...], 3:[...] }
+  SALIDAS: "salidas_listas",     // { 1:[...], 2:[...], 3:[...] }
   STATUS_POS_DET: "status_posiciones_detalle",
   STATUS_RACKS_DET: "status_racks_detalle"
 };
@@ -198,20 +198,9 @@ async function openBarScanner(targetInput, mode = 'text') {
 
     const onDetected = (result) => {
       if (!result || !result.codeResult || !result.codeResult.code) return;
-
-      // 1) Tomar el valor tal cual (NO validar aquí)
-      let raw = (result.codeResult.code || "").trim();
-      let v = raw;
-
-      // 2) Si el modo sugiere rack/pos, intentar autoformatear SOLO si luce como esos patrones
-      if (mode === 'rack') {
-        const auto = autoformatRack(raw);
-        if (/^Rack\d{1,3}$/.test(auto)) v = auto;
-      } else if (mode === 'pos') {
-        const auto = autoformatPos(raw);
-        if (/^P\d{1,3}$/.test(auto)) v = auto;
-      }
-      // Nota: si no parece Rack/P, dejamos el texto crudo. La validación ocurre al guardar.
+      let v = (result.codeResult.code || "").trim();
+      if (mode === 'rack') v = autoformatRack(v);
+      if (mode === 'pos') v = autoformatPos(v);
 
       if (barTargetInput) {
         barTargetInput.value = v;
@@ -232,7 +221,7 @@ async function openBarScanner(targetInput, mode = 'text') {
     if (barRegion) {
       barRegion.innerHTML = '<div style="color:#fff;padding:.75rem">No se pudo iniciar la cámara. Verifica HTTPS y permisos.</div>';
     }
-    try { await stopBarScanner(); } catch {}
+    try { await stopBarScanner(); } catch { }
   }
 }
 
@@ -350,7 +339,7 @@ form.addEventListener("submit", (e) => {
   inputNumRack.value = rack;
   inputPosRack.value = posicion;
 
-  // Validaciones (AQUÍ sí exigimos formatos)
+  // Validaciones
   if (!linea || !operador || !codigoSeco || !rack || !posicion) {
     alert("Completa todos los campos del registro.");
     return;
@@ -540,7 +529,7 @@ formEntrada.addEventListener("click", (e) => {
       return;
     }
 
-    // 2) Confirmación de Rack obligatoria y coincidente (AQUÍ sí validar)
+    // 2) Confirmación de Rack obligatoria y coincidente
     let confirmRack = autoformatRack(inputConfirmRack.value.trim());
     if (!confirmRack) {
       alert("Debes confirmar el Rack (ej. Rack001).");
@@ -549,10 +538,6 @@ formEntrada.addEventListener("click", (e) => {
     inputConfirmRack.value = confirmRack;
     if (confirmRack !== currentSalida.rack) {
       alert(`El Rack confirmado (${confirmRack}) no coincide con el asignado (${currentSalida.rack}).`);
-      inputConfirmRack.focus(); return;
-    }
-    if (!RX_PATTERN.test(confirmRack)) {
-      alert('Formato inválido. Debe ser "Rack###" (ej. Rack001).');
       inputConfirmRack.focus(); return;
     }
 
@@ -796,10 +781,10 @@ document.getElementById("formComentario")?.addEventListener("submit", (e) => {
 });
 
 // ====== Botones de escaneo en el formulario principal ======
-const btnScanSeco    = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
+const btnScanSeco = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
 const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
 const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
 
-btnScanSeco?.addEventListener("click",    () => openBarScanner(inputCodigoSeco, 'text'));
-btnScanNumRack?.addEventListener("click", () => openBarScanner(inputNumRack,   'rack'));
-btnScanPosRack?.addEventListener("click", () => openBarScanner(inputPosRack,   'pos'));
+btnScanSeco?.addEventListener("click", () => openBarScanner(inputCodigoSeco, 'text'));
+btnScanNumRack?.addEventListener("click", () => openBarScanner(inputNumRack, 'rack'));
+btnScanPosRack?.addEventListener("click", () => openBarScanner(inputPosRack, 'pos'));
