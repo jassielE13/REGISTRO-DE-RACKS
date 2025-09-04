@@ -224,14 +224,6 @@ inputCodigoSeco.addEventListener("input", () => {
 inputNumRack.addEventListener("blur", () => { inputNumRack.value = autoformatRack(inputNumRack.value); });
 inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos(inputPosRack.value); });
 
-// Normalización “en vivo”
-[inputNumRack, inputPosRack].forEach(inp => {
-  inp.addEventListener("input", () => {
-    const v = (inp === inputNumRack) ? autoformatRack(inp.value) : autoformatPos(inp.value);
-    if (/^Rack\d{0,3}$/.test(v) || /^P\d{0,3}$/.test(v)) inp.value = v;
-  });
-});
-
 // ====== Guardar Registro ======
 form.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -701,3 +693,4 @@ const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("bu
     b.setAttribute("aria-disabled", "true");
   }
 });
+
