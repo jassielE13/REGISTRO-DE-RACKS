@@ -361,13 +361,22 @@ function handleRetirar(item, linea) {
     safeSave(LS_KEYS.SALIDAS, salidasListas);
   }
 
-  // Quitar de retirar
-  const arr = retirarListas[linea] || [];
-  const idx = arr.findIndex(x => x.posicion === item.posicion && x.rack === item.rack);
-  if (idx >= 0) { arr.splice(idx, 1); retirarListas[linea] = arr; safeSave(LS_KEYS.RETIRAR, retirarListas); }
-
-  renderAll();
+// Quitar de retirar
+const arr = retirarListas[linea] || [];
+const idx = arr.findIndex(x => x.posicion === item.posicion && x.rack === item.rack);
+if (idx >= 0) { 
+  arr.splice(idx, 1); 
+  retirarListas[linea] = arr; 
+  safeSave(LS_KEYS.RETIRAR, retirarListas); 
 }
+
+// 🔓 Liberar recursos ocupados
+delete enUso.posiciones[item.posicion];
+delete enUso.racks[item.rack];
+safeSave(LS_KEYS.EN_USO, enUso);
+
+renderAll();
+
 
 // ====== Entrada / Salida ======
 
@@ -716,6 +725,7 @@ const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("bu
     b.setAttribute("aria-disabled", "true");
   }
 });
+
 
 
 
