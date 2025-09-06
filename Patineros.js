@@ -1,14 +1,10 @@
-// ================================
-// Patineros.js (sin escáner; botones de escanear deshabilitados)
-// ================================
-
 // ====== Claves de almacenamiento ======
 const LS_KEYS = {
   FORM_LAST_BY_LINE: "patineros_form_last_by_line",
   CONTROLISTAS: "controlistas_pendientes",
-  EN_USO: "en_uso",             // { posiciones:{}, racks:{} }  <-- corregido
-  RETIRAR: "retirar_listas",    // { 1:[...], 2:[...], 3:[...] }
-  SALIDAS: "salidas_listas",    // { 1:[...], 2:[...], 3:[...] }
+  EN_USO: "en_uso",              // { posiciones:{}, racks:{} }
+  RETIRAR: "retirar_listas",     // { 1:[...], 2:[...], 3:[...] }
+  SALIDAS: "salidas_listas",     // { 1:[...], 2:[...], 3:[...] }
   STATUS_POS_DET: "status_posiciones_detalle",
   STATUS_RACKS_DET: "status_racks_detalle"
 };
@@ -37,33 +33,21 @@ const retirarListas = loadJSON(LS_KEYS.RETIRAR, { 1: [], 2: [], 3: [] });
 const salidasListas = loadJSON(LS_KEYS.SALIDAS, { 1: [], 2: [], 3: [] });
 
 // Mapas de solo lectura (llenados por Controlistas)
-const statusPosDet = loadJSON(LS_KEYS.STATUS_POS_DET, {});
-const statusRacksDet = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});
+const statusPosDet = loadJSON(LS_KEYS.STATUS_POS_DET, {});   // P001:{estado: 'disponible'|'en_uso'|'mantenimiento', ...}
+const statusRacksDet = loadJSON(LS_KEYS.STATUS_RACKS_DET, {}); // Rack001:{estado: 'disponible'|'en_uso'|'mantenimiento', ...}
 
 // ====== Reconciliación de estados ======
+// - En SALIDAS sin salida: ocupa SOLO el rack (la posición ya quedó libre al retirar).
 function reconcileEnUso() {
   const nuevo = { posiciones: {}, racks: {} };
-
-  // Ocupan recursos los que están en SALIDAS y no tienen salida
   const s = loadJSON(LS_KEYS.SALIDAS, { 1: [], 2: [], 3: [] });
   [1, 2, 3].forEach(l => {
     (s[l] || []).forEach(reg => {
       if (!reg?.salida) {
-        if (reg?.posicion) nuevo.posiciones[reg.posicion] = true;
-        if (reg?.rack) nuevo.racks[reg.rack] = true;
+        if (reg?.rack) nuevo.racks[reg.rack] = true;  // SOLO rack
       }
     });
   });
-
-  // También ocupan los que están en RETIRAR
-  const r = loadJSON(LS_KEYS.RETIRAR, { 1: [], 2: [], 3: [] });
-  [1, 2, 3].forEach(l => {
-    (r[l] || []).forEach(item => {
-      if (item?.posicion) nuevo.posiciones[item.posicion] = true;
-      if (item?.rack) nuevo.racks[item.rack] = true;
-    });
-  });
-
   enUso.posiciones = nuevo.posiciones;
   enUso.racks = nuevo.racks;
   safeSave(LS_KEYS.EN_USO, enUso);
@@ -103,11 +87,11 @@ const formSalida = document.getElementById("formSalida");
 const inputPatineroEntrada = document.getElementById("patineroEntrada");
 const inputValidacionPatinero = document.getElementById("validacionPatinero");
 
-// Confirmación de línea y botón “Escanear” (lo dejaremos deshabilitado)
+// Confirmación de línea (modal Entrada)
 const confirmLineaContainer = document.getElementById("confirmLineaBtns");
 const inputConfirmLineaValue = document.getElementById("confirmLineaValue");
 const inputConfirmRack = document.getElementById("confirmRack");
-const btnScanRack = document.getElementById("btnScanRack");
+const btnScanRack = document.getElementById("btnScanRack"); // deshabilitado si así lo tenías
 
 // ====== Estado interno ======
 let currentSalida = null;
@@ -130,51 +114,20 @@ const POS_PATTERN = /^P\d{3}$/;
 
 function autoformatRack(value) {
   const v = (value || "").trim();
-
-  if (v === "" || /^Rack$/i.test(v)) return v;
-
-  let m = /^Rack(\d{1,3})$/i.exec(v);
-  if (m) {
-    const raw = m[1];
-    const n = parseInt(raw, 10);
-    if (!Number.isFinite(n) || n === 0) return `Rack${raw}`;
-    return `Rack${String(n).padStart(3, "0")}`;
-  }
-
-  if (/^\d{1,3}$/.test(v)) {
-    const n = parseInt(v, 10);
-    if (!Number.isFinite(n) || n === 0) return v;
-    return `Rack${String(n).padStart(3, "0")}`;
-  }
-
+  if (RX_PATTERN.test(v)) return v;
+  if (/^\d{1,3}$/.test(v)) return `Rack${pad3(parseInt(v, 10))}`;
+  const m = /^Rack(\d{1,3})$/.exec(v);
+  if (m) return `Rack${pad3(parseInt(m[1], 10))}`;
   return v;
 }
-
 function autoformatPos(value) {
   const v = (value || "").trim();
-
-  if (v === "" || /^P$/i.test(v)) return v;
-
-  let m = /^P(\d{1,3})$/i.exec(v);
-  if (m) {
-    const raw = m[1];
-    const n = parseInt(raw, 10);
-    if (!Number.isFinite(n) || n === 0) return `P${raw}`;
-    return `P${String(n).padStart(3, "0")}`;
-  }
-
-  if (/^\d{1,3}$/.test(v)) {
-    const n = parseInt(v, 10);
-    if (!Number.isFinite(n) || n === 0) return v;
-    return `P${String(n).padStart(3, "0")}`;
-  }
-
+  if (POS_PATTERN.test(v)) return v;
+  if (/^\d{1,3}$/.test(v)) return `P${pad3(parseInt(v, 10))}`;
+  const m = /^P(\d{1,3})$/.exec(v);
+  if (m) return `P${pad3(parseInt(m[1], 10))}`;
   return v;
 }
-
-// ====== (Eliminado) Código de escaneo ======
-// Se ha retirado Quagga/HTML5 y toda la lógica de cámara.
-// Dejamos los botones de “Escanear” deshabilitados para futura activación.
 
 // ====== Helper visual para tabla (OK / Dañado / —) ======
 function damageCellHTML(val) {
@@ -203,14 +156,11 @@ function prefillFromLast(linea) {
 function loadTabs() { return loadJSON(TAB_KEY, { retirar: 'sal1', salidas: 'salout1' }); }
 function saveTabs(v) { safeSave(TAB_KEY, v); }
 
-// Restaurar pestañas en load
 (function restoreTabs() {
   const st = loadTabs();
   document.getElementById(st.retirar)?.setAttribute("checked", "checked");
   document.getElementById(st.salidas)?.setAttribute("checked", "checked");
 })();
-
-// Escuchar cambios de pestañas
 ["sal1", "sal2", "sal3"].forEach(id => {
   document.getElementById(id)?.addEventListener("change", () => {
     const st = loadTabs(); st.retirar = id; saveTabs(st);
@@ -235,17 +185,15 @@ document.querySelectorAll('input[name="linea"]').forEach(r => {
     prefillFromLast(linea);
   });
 });
-
-// Prefill inicial
 (function prefillInit() {
   const linea = getLineaSeleccionada();
   if (linea) prefillFromLast(linea);
 })();
-
-// Autocompletar “Firmando el acumulador”
 inputCodigoSeco.addEventListener("input", () => {
   inputFirmando.value = inputCodigoSeco.value ? `Acum: ${inputCodigoSeco.value.toUpperCase()}` : "— Se autocompleta al validar —";
 });
+inputNumRack.addEventListener("blur", () => { inputNumRack.value = autoformatRack(inputNumRack.value); });
+inputPosRack.addEventListener("blur", () => { inputPosRack.value = autoformatPos(inputPosRack.value); });
 
 // ====== Guardar Registro ======
 form.addEventListener("submit", (e) => {
@@ -257,13 +205,11 @@ form.addEventListener("submit", (e) => {
   const firmando = inputFirmando.value.trim();
   const cantidad = Number.parseInt(inputCantidad.value || "0", 10);
 
-  // Normalizar antes de validar/consultar enUso
   let rack = autoformatRack(inputNumRack.value);
   let posicion = autoformatPos(inputPosRack.value);
   inputNumRack.value = rack;
   inputPosRack.value = posicion;
 
-  // Validaciones
   if (!linea || !operador || !codigoSeco || !rack || !posicion) {
     alert("Completa todos los campos del registro.");
     return;
@@ -273,32 +219,16 @@ form.addEventListener("submit", (e) => {
     inputCantidad.focus();
     return;
   }
-  if (!RX_PATTERN.test(rack)) {
-    alert('El número de rack debe tener formato "Rack###", ej. "Rack001".');
-    inputNumRack.focus(); return;
-  }
-  if (!POS_PATTERN.test(posicion)) {
-    alert('La posición debe tener formato "P###", ej. "P002".');
-    inputPosRack.focus(); return;
-  }
+  if (!RX_PATTERN.test(rack)) { alert('El número de rack debe tener formato "Rack###".'); inputNumRack.focus(); return; }
+  if (!POS_PATTERN.test(posicion)) { alert('La posición debe tener formato "P###".'); inputPosRack.focus(); return; }
 
-  // Validación de ocupación
   reconcileEnUso();
-  if (enUso.posiciones[posicion]) {
-    alert(`La posición ${posicion} ya está en uso. Elige otra.`);
-    inputPosRack.focus(); return;
-  }
-  if (enUso.racks[rack]) {
-    alert(`El rack ${rack} ya está en uso. Elige otro.`);
-    inputNumRack.focus(); return;
-  }
+  if (enUso.racks[rack]) { alert(`El rack ${rack} ya está en uso.`); inputNumRack.focus(); return; }
 
-  // 1) Guardar “último formulario” por línea (dejando rack/pos vacíos)
   const map = loadLastByLine();
   map[linea] = { linea, operador, codigoSeco, firmando, cantidad, numRack: "", posRack: "" };
   saveLastByLine(map);
 
-  // 2) Enviar a Controlistas (pendientes) con trazabilidad
   const nuevo = {
     id: crypto.randomUUID(),
     linea, operador, codigoSeco, firmando, cantidad,
@@ -312,12 +242,11 @@ form.addEventListener("submit", (e) => {
   controlistasPend.push(nuevo);
   safeSave(LS_KEYS.CONTROLISTAS, controlistasPend);
 
-  // 3) Marcar EN USO
+  // Ocupa POS y RACK hasta retirar
   enUso.posiciones[posicion] = true;
   enUso.racks[rack] = true;
   safeSave(LS_KEYS.EN_USO, enUso);
 
-  // 4) Añadir a RETIRAR
   (retirarListas[linea] = retirarListas[linea] || []).push({
     posicion, rack, linea, refId: nuevo.id,
     operador: nuevo.operador, empleado: nuevo.registradoPorId,
@@ -325,7 +254,6 @@ form.addEventListener("submit", (e) => {
   });
   safeSave(LS_KEYS.RETIRAR, retirarListas);
 
-  // 5) Limpiar rack/pos en la UI actual
   inputNumRack.value = "";
   inputPosRack.value = "";
 
@@ -333,7 +261,7 @@ form.addEventListener("submit", (e) => {
   alert("Registro guardado y enviado a Controlistas.");
 });
 
-// ====== Retirar -> mover a Salidas ======
+// ====== Retirar -> mover a Salidas (libera POSICIÓN) ======
 function handleRetirar(item, linea) {
   if (!confirm(`¿Mover a SALIDAS?\nLínea ${linea} • ${item.posicion} • ${item.rack}`)) return;
 
@@ -349,38 +277,35 @@ function handleRetirar(item, linea) {
     cantidad: item.cantidad ?? null,
     creadoEn: item.creadoEn || nowISO(),
     registradoPorNombre: item.registradoPorNombre || null,
-    entrada: null,            // {byId, byName, confirmLinea, confirmRack, at}
-    salida: null,             // {byId, byName, at}
+    entrada: null,
+    salida: null,
     entradaGuardadaEn: null
   };
 
-  // Evitar duplicados en la misma línea (rack+pos sin salida)
-  const yaExiste = (salidasListas[linea] || []).some(r => r.rack === item.rack && r.posicion === item.posicion && !r.salida);
+  const yaExiste = (salidasListas[linea] || []).some(r =>
+    r.rack === item.rack && r.posicion === item.posicion && !r.salida
+  );
   if (!yaExiste) {
     (salidasListas[linea] = salidasListas[linea] || []).push(registro);
     safeSave(LS_KEYS.SALIDAS, salidasListas);
   }
 
-// Quitar de retirar
-const arr = retirarListas[linea] || [];
-const idx = arr.findIndex(x => x.posicion === item.posicion && x.rack === item.rack);
-if (idx >= 0) { 
-  arr.splice(idx, 1); 
-  retirarListas[linea] = arr; 
-  safeSave(LS_KEYS.RETIRAR, retirarListas); 
+  const arr = retirarListas[linea] || [];
+  const idx = arr.findIndex(x => x.posicion === item.posicion && x.rack === item.rack);
+  if (idx >= 0) {
+    arr.splice(idx, 1);
+    retirarListas[linea] = arr;
+    safeSave(LS_KEYS.RETIRAR, retirarListas);
+  }
+
+  // Libera la posición (el rack sigue ocupado hasta SALIDA)
+  delete enUso.posiciones[item.posicion];
+  safeSave(LS_KEYS.EN_USO, enUso);
+
+  renderAll();
 }
 
-// 🔓 Liberar recursos ocupados
-delete enUso.posiciones[item.posicion];
-delete enUso.racks[item.rack];
-safeSave(LS_KEYS.EN_USO, enUso);
-
-renderAll();
-
-
 // ====== Entrada / Salida ======
-
-// Click en fila para ver detalle (ignorando clicks en botones)
 function attachRowInfoHandlers(tbody, lista) {
   tbody.querySelectorAll("tr").forEach((tr, i) => {
     tr.addEventListener("click", (ev) => {
@@ -405,30 +330,20 @@ function attachRowInfoHandlers(tbody, lista) {
   });
 }
 
-// Abrir modal ENTRADA
 function openEntradaModal(reg) {
   currentSalida = reg;
-
-  // Reset confirmación de línea
   entradaLineaConfirmada = false;
   inputConfirmLineaValue.value = "";
   confirmLineaContainer?.querySelectorAll("button[data-linea]")
     .forEach(b => b.classList.remove("active"));
 
-  // Resumen
   entradaResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
-
-  // Sugerir nombre (editable)
   inputPatineroEntrada.value = CURRENT_USER?.name || "";
-
-  // Limpiar confirmación de rack
   inputConfirmRack.value = "";
 
   modalEntrada.showModal();
   setTimeout(() => inputPatineroEntrada?.focus(), 50);
 }
-
-// Delegación: botones “Línea 1/2/3/4”
 confirmLineaContainer?.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-linea]");
   if (!btn) return;
@@ -438,14 +353,11 @@ confirmLineaContainer?.addEventListener("click", (e) => {
   inputConfirmLineaValue.value = String(lineaSel);
   entradaLineaConfirmada = true;
 
-  // Visual activo
   confirmLineaContainer.querySelectorAll("button[data-linea]")
     .forEach(b => b.classList.toggle("active", b === btn));
 });
+btnScanRack?.addEventListener("click", () => { /* opcional: deshabilitado */ });
 
-// (El botón de escanear en el modal queda deshabilitado más abajo)
-
-// Guardar ENTRADA
 formEntrada.addEventListener("click", (e) => {
   const btn = e.target;
   if (!(btn instanceof HTMLButtonElement)) return;
@@ -454,26 +366,20 @@ formEntrada.addEventListener("click", (e) => {
     const byName = inputPatineroEntrada.value.trim() || CURRENT_USER?.name || "";
     const byId = CURRENT_USER?.id || null;
 
-    // 1) Línea confirmada y coincidente
     const lineaSeleccionada = parseInt(inputConfirmLineaValue.value, 10);
     if (!entradaLineaConfirmada || lineaSeleccionada !== currentSalida.linea) {
       alert(`Debes seleccionar la línea correcta (Línea ${currentSalida.linea}).`);
       return;
     }
 
-    // 2) Confirmación de Rack obligatoria y coincidente
     let confirmRack = autoformatRack(inputConfirmRack.value.trim());
-    if (!confirmRack) {
-      alert("Debes confirmar el Rack (ej. Rack001).");
-      inputConfirmRack.focus(); return;
-    }
+    if (!confirmRack) { alert("Debes confirmar el Rack (ej. Rack001)."); inputConfirmRack.focus(); return; }
     inputConfirmRack.value = confirmRack;
     if (confirmRack !== currentSalida.rack) {
       alert(`El Rack confirmado (${confirmRack}) no coincide con el asignado (${currentSalida.rack}).`);
       inputConfirmRack.focus(); return;
     }
 
-    // Guardar entrada
     currentSalida.entrada = {
       byId, byName,
       confirmLinea: currentSalida.linea,
@@ -490,18 +396,12 @@ formEntrada.addEventListener("click", (e) => {
   if (btn.value === "cancel") modalEntrada.close();
 });
 
-// Habilitar “Dar salida” tras 1 minuto
-function canShowDarSalida(reg) {
-  if (!reg.entradaGuardadaEn) return false;
-  return (Date.now() - reg.entradaGuardadaEn) >= 60 * 1000; // 1 min
-}
 function secondsToEnable(reg) {
   if (!reg.entradaGuardadaEn) return 60;
   const diff = 60 - Math.floor((Date.now() - reg.entradaGuardadaEn) / 1000);
   return Math.max(0, diff);
 }
 
-// Abrir modal SALIDA
 function openSalidaModal(reg) {
   currentSalida = reg;
   salidaResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
@@ -510,7 +410,6 @@ function openSalidaModal(reg) {
   setTimeout(() => inputValidacionPatinero?.focus(), 50);
 }
 
-// Guardar SALIDA
 formSalida.addEventListener("click", (e) => {
   const btn = e.target;
   if (!(btn instanceof HTMLButtonElement)) return;
@@ -520,20 +419,41 @@ formSalida.addEventListener("click", (e) => {
     const byId = CURRENT_USER?.id || null;
     if (!byName) return;
 
- // Guardar salida
-currentSalida.salida = { byId, byName, at: nowISO() };
+    currentSalida.salida = { byId, byName, at: nowISO() };
 
-// Liberar recursos
-delete enUso.posiciones[currentSalida.posicion];
-delete enUso.racks[currentSalida.rack];
-safeSave(LS_KEYS.EN_USO, enUso);
+    // Libera SOLO el RACK
+    delete enUso.racks[currentSalida.rack];
+    safeSave(LS_KEYS.EN_USO, enUso);
 
+    // Enviar a CONTROLISTAS (historial para ellos)
+    const controlistasPend = loadJSON(LS_KEYS.CONTROLISTAS, []);
+    controlistasPend.push({
+      id: crypto.randomUUID(),
+      tipo: "salida",
+      linea: currentSalida.linea,
+      posicion: currentSalida.posicion,
+      rack: currentSalida.rack,
+      entrada: currentSalida.entrada || null,
+      salida: currentSalida.salida,
+      refId: currentSalida.refId || null,
+      creadoEn: nowISO(),
+      operador: currentSalida.operador || null,
+      codigoSeco: currentSalida.codigoSeco || null,
+      cantidad: currentSalida.cantidad ?? null,
+      registradoPorNombre: currentSalida.registradoPorNombre || null,
+      validadoPorId: currentSalida.salida.byId,
+      validadoPorNombre: currentSalida.salida.byName
+    });
+    safeSave(LS_KEYS.CONTROLISTAS, controlistasPend);
 
-    // Eliminar de la lista de salidas
-    const lista = salidasListas[currentSalida.linea] || [];
-    const idx = lista.findIndex(x => x.id === currentSalida.id);
-    if (idx >= 0) { lista.splice(idx, 1); salidasListas[currentSalida.linea] = lista; }
-    safeSave(LS_KEYS.SALIDAS, salidasListas);
+    // Quitar el registro de salidasListas (ya fue enviado a Controlistas)
+    const arr = salidasListas[currentSalida.linea] || [];
+    const idx = arr.findIndex(r => r.id === currentSalida.id);
+    if (idx >= 0) {
+      arr.splice(idx, 1);
+      salidasListas[currentSalida.linea] = arr;
+      safeSave(LS_KEYS.SALIDAS, salidasListas);
+    }
 
     modalSalida.close();
     renderAll();
@@ -544,21 +464,45 @@ safeSave(LS_KEYS.EN_USO, enUso);
 
 // ====== Render ======
 function renderRetirar() {
+  function groupByCodigo(lista) {
+    const map = {};
+    (lista || []).forEach(it => {
+      const key = (it.codigoSeco && String(it.codigoSeco).trim()) || "—";
+      (map[key] = map[key] || []).push(it);
+    });
+    return map;
+  }
   function fill(tbody, lista, linea) {
     tbody.innerHTML = "";
     if (!lista || !lista.length) {
       tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; opacity:.7">Sin elementos</td></tr>`;
       return;
     }
-    lista.forEach(item => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${item.posicion}</td>
-        <td>${item.rack}</td>
-        <td><button class="accent" type="button">Retirar</button></td>
-      `;
-      tr.querySelector("button").addEventListener("click", () => handleRetirar(item, linea));
-      tbody.appendChild(tr);
+    const groups = groupByCodigo(lista);
+    const orderedKeys = Object.keys(groups).sort((a, b) => {
+      if (a === "—") return 1;
+      if (b === "—") return -1;
+      return a.localeCompare(b, "es", { numeric: true, sensitivity: "base" });
+    });
+    orderedKeys.forEach(code => {
+      const items = groups[code];
+      const trHead = document.createElement("tr");
+      trHead.innerHTML = `
+        <td colspan="3" style="background:#f3f4f6;border-top:2px solid #e5e7eb;font-weight:800;color:#2563eb;">
+          Código: <span style="font-weight:900;">${code}</span>
+          <small style="opacity:.75; margin-left:.5rem;">(${items.length})</small>
+        </td>`;
+      tbody.appendChild(trHead);
+      items.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.posicion}</td>
+          <td>${item.rack}</td>
+          <td><button class="accent" type="button">Retirar</button></td>
+        `;
+        tr.querySelector("button").addEventListener("click", () => handleRetirar(item, linea));
+        tbody.appendChild(tr);
+      });
     });
   }
   fill(tablaRetirar1, retirarListas[1] || [], 1);
@@ -567,58 +511,81 @@ function renderRetirar() {
 }
 
 function renderSalidas() {
+  function groupByCodigo(lista) {
+    const map = {};
+    (lista || []).forEach(it => {
+      const key = (it.codigoSeco && String(it.codigoSeco).trim()) || "—";
+      (map[key] = map[key] || []).push(it);
+    });
+    return map;
+  }
   function fill(tbody, lista) {
     tbody.innerHTML = "";
-
-    // Registro activo (con entrada y sin salida) en esta línea
-    const activo = (lista || []).find(r => r.entrada && !r.salida);
-    const activoId = activo?.id || null;
-
     if (!lista || !lista.length) {
       tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; opacity:.7">Sin elementos</td></tr>`;
       return;
     }
+    const activo = (lista || []).find(r => r.entrada && !r.salida);
+    const activoId = activo?.id || null;
 
-    lista.forEach(reg => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${reg.posicion}</td><td>${reg.rack}</td><td></td><td></td>`;
-
-      if (activoId && reg.id !== activoId) {
-        // Mientras otro esté activo, este no muestra botones
-      } else {
-        if (!reg.entrada) {
-          // No hay activo: puede dar entrada
-          if (!activoId) {
-            const btnEntrada = document.createElement("button");
-            btnEntrada.type = "button";
-            btnEntrada.textContent = "Dar entrada";
-            btnEntrada.className = "primary";
-            btnEntrada.addEventListener("click", () => openEntradaModal(reg));
-            tr.children[2].appendChild(btnEntrada);
-          }
-        } else {
-          // Es el activo de la línea: mostrar salida (o cuenta regresiva)
-          const btnSalida = document.createElement("button");
-          btnSalida.type = "button";
-          const left = secondsToEnable(reg);
-          if (left === 0) {
-            btnSalida.textContent = "Dar salida";
-            btnSalida.className = "accent";
-            btnSalida.disabled = false;
-            btnSalida.addEventListener("click", () => openSalidaModal(reg));
-          } else {
-            btnSalida.textContent = `Dar salida (${left}s)`;
-            btnSalida.className = "primary";
-            btnSalida.disabled = true;
-          }
-          tr.children[3].appendChild(btnSalida);
-        }
-      }
-
-      tbody.appendChild(tr);
+    const groups = groupByCodigo(lista);
+    const orderedKeys = Object.keys(groups).sort((a, b) => {
+      if (a === "—") return 1;
+      if (b === "—") return -1;
+      return a.localeCompare(b, "es", { numeric: true, sensitivity: "base" });
     });
 
-    attachRowInfoHandlers(tbody, lista);
+    const rowsModel = [];
+
+    orderedKeys.forEach(code => {
+      const items = groups[code];
+      const trHead = document.createElement("tr");
+      trHead.innerHTML = `
+        <td colspan="4" style="background:#f3f4f6;border-top:2px solid #e5e7eb;font-weight:800;color:#2563eb;">
+          Código: <span style="font-weight:900;">${code}</span>
+          <small style="opacity:.75; margin-left:.5rem;">(${items.length})</small>
+        </td>`;
+      tbody.appendChild(trHead);
+      rowsModel.push(null);
+
+      items.forEach(reg => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${reg.posicion}</td><td>${reg.rack}</td><td></td><td></td>`;
+        if (activoId && reg.id !== activoId) {
+          // otro activo bloquea
+        } else {
+          if (!reg.entrada) {
+            if (!activoId) {
+              const btnEntrada = document.createElement("button");
+              btnEntrada.type = "button";
+              btnEntrada.textContent = "Dar entrada";
+              btnEntrada.className = "primary";
+              btnEntrada.addEventListener("click", () => openEntradaModal(reg));
+              tr.children[2].appendChild(btnEntrada);
+            }
+          } else {
+            const btnSalida = document.createElement("button");
+            btnSalida.type = "button";
+            const left = secondsToEnable(reg);
+            if (left === 0) {
+              btnSalida.textContent = "Dar salida";
+              btnSalida.className = "accent";
+              btnSalida.disabled = false;
+              btnSalida.addEventListener("click", () => openSalidaModal(reg));
+            } else {
+              btnSalida.textContent = `Dar salida (${left}s)`;
+              btnSalida.className = "primary";
+              btnSalida.disabled = true;
+            }
+            tr.children[3].appendChild(btnSalida);
+          }
+        }
+        tbody.appendChild(tr);
+        rowsModel.push(reg);
+      });
+    });
+
+    attachRowInfoHandlers(tbody, rowsModel);
   }
 
   fill(tablaSalidas1, salidasListas[1] || []);
@@ -626,53 +593,96 @@ function renderSalidas() {
   fill(tablaSalidas3, salidasListas[3] || []);
 }
 
+/* ====== NUEVO: Estado de Posiciones/Racks con prioridad de orden ====== */
+function estadoPos(key) {
+  const det = statusPosDet[key];
+  if (det?.estado === "mantenimiento") return "mantenimiento";
+  if (enUso.posiciones[key]) return "ocupada";
+  return "disponible";
+}
+function estadoRack(key) {
+  const det = statusRacksDet[key];
+  if (det?.estado === "mantenimiento") return "mantenimiento";
+  if (enUso.racks[key]) return "en_uso";
+  return "disponible";
+}
+function estadoTdHTMLPos(estado) {
+  if (estado === "mantenimiento") return `<td class="warn">Mantenimiento</td>`;
+  if (estado === "ocupada") return `<td class="busy">Ocupada</td>`;
+  return `<td class="ok">Libre</td>`;
+}
+function estadoTdHTMLRack(estado) {
+  if (estado === "mantenimiento") return `<td class="warn">Mantenimiento</td>`;
+  if (estado === "en_uso") return `<td class="busy">En uso</td>`;
+  return `<td class="ok">Listo</td>`;
+}
+
 function renderPosiciones() {
   tablaPosiciones.innerHTML = "";
+  const libres = [], mantenimiento = [], ocupadas = [];
+
   for (let i = 1; i <= 450; i++) {
     const p = `P${pad3(i)}`;
-    const libre = !enUso.posiciones[p];
-
+    const est = estadoPos(p); // 'disponible' | 'mantenimiento' | 'ocupada'
     const det = statusPosDet[p] || {};
-    const tdActuador = damageCellHTML(det.actuador);
-    const tdTarjeta = damageCellHTML(det.tarjeta);
-    const tdAbraz = damageCellHTML(det.abrazaderas);
-    const tdCable = damageCellHTML(det.cable_bajada);
+    const item = { p, est, det, idNum: i };
+    if (est === "disponible") libres.push(item);
+    else if (est === "mantenimiento") mantenimiento.push(item);
+    else ocupadas.push(item);
+  }
 
+  libres.sort((a,b)=>a.idNum-b.idNum);
+  mantenimiento.sort((a,b)=>a.idNum-b.idNum);
+  ocupadas.sort((a,b)=>a.idNum-b.idNum);
+
+  const renderRow = ({ p, est, det }) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${p}</td>
-      <td class="${libre ? "ok" : "busy"}">${libre ? "Libre" : "Ocupada"}</td>
-      ${tdActuador}
-      ${tdTarjeta}
-      ${tdAbraz}
-      ${tdCable}
-      <td>—</td>
+      ${estadoTdHTMLPos(est)}
+      ${damageCellHTML(det.actuador)}
+      ${damageCellHTML(det.tarjeta)}
+      ${damageCellHTML(det.abrazaderas)}
+      ${damageCellHTML(det.cable_bajada)}
+      <td>${det.obs ? det.obs : "—"}</td>
     `;
     tablaPosiciones.appendChild(tr);
-  }
+  };
+
+  [...libres, ...mantenimiento, ...ocupadas].forEach(renderRow);
 }
 
 function renderRacks() {
   tablaRacks.innerHTML = "";
+  const disponibles = [], mantenimiento = [], enUsoList = [];
+
   for (let i = 1; i <= 435; i++) {
     const r = `Rack${pad3(i)}`;
-    const libre = !enUso.racks[r];
-
+    const est = estadoRack(r); // 'disponible' | 'mantenimiento' | 'en_uso'
     const det = statusRacksDet[r] || {};
-    const tdSoporte = damageCellHTML(det.soporte_dren);
-    const tdPorta = damageCellHTML(det.porta_manguera);
-    const tdTina = damageCellHTML(det.tina);
+    const item = { r, est, det, idNum: i };
+    if (est === "disponible") disponibles.push(item);
+    else if (est === "mantenimiento") mantenimiento.push(item);
+    else enUsoList.push(item);
+  }
 
+  disponibles.sort((a,b)=>a.idNum-b.idNum);
+  mantenimiento.sort((a,b)=>a.idNum-b.idNum);
+  enUsoList.sort((a,b)=>a.idNum-b.idNum);
+
+  const renderRow = ({ r, est, det }) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${r}</td>
-      <td class="${libre ? "ok" : "busy"}">${libre ? "Listo" : "En uso"}</td>
-      ${tdSoporte}
-      ${tdPorta}
-      ${tdTina}
+      ${estadoTdHTMLRack(est)}
+      ${damageCellHTML(det.soporte_dren)}
+      ${damageCellHTML(det.porta_manguera)}
+      ${damageCellHTML(det.tina)}
     `;
     tablaRacks.appendChild(tr);
-  }
+  };
+
+  [...disponibles, ...mantenimiento, ...enUsoList].forEach(renderRow);
 }
 
 // Contadores por línea en encabezados
@@ -688,6 +698,7 @@ function updateCountersUI() {
 }
 
 function renderAll() {
+  reconcileEnUso();
   renderRetirar();
   renderSalidas();
   renderPosiciones();
@@ -695,30 +706,43 @@ function renderAll() {
   updateCountersUI();
 }
 
-// ====== Inicialización de render y timers ======
+// ====== Inicialización ======
 renderAll();
-// Refresco ágil para la cuenta regresiva de salida
+// refresco ligero para countdown de salida
 setInterval(() => renderSalidas(), 1000);
 
-// ====== Sección Comentarios (placeholder) ======
+// ====== Comentarios ======
+// (MODIFICADO) Envía ping para notificación en Controlistas
 document.getElementById("formComentario")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const txt = (document.getElementById("comentario")?.value || "").trim();
   if (!txt) return;
+
   const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
   const user = JSON.parse(localStorage.getItem("CURRENT_USER") || "null");
-  arr.push({ by: user?.name || "Patinero", text: txt, at: new Date().toISOString() });
+  const item = { by: user?.name || "Patinero", text: txt, at: new Date().toISOString() };
+
+  arr.push(item);
   localStorage.setItem("comentarios", JSON.stringify(arr));
   e.target.reset();
   alert("Comentario enviado.");
+
+  // 🔔 Ping a Controlistas: dispara el evento 'storage' en otras pestañas
+  try {
+    const payload = {
+      id: crypto.randomUUID(),
+      by: item.by,
+      text: item.text,
+      at: Date.now()
+    };
+    localStorage.setItem("comment_ping", JSON.stringify(payload));
+  } catch {}
 });
 
-// ====== Botones de “Escanear”: deshabilitados ======
+// Deshabilitar botones de escaneo (si existen)
 const btnScanSeco    = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
 const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
 const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
-
-// Deshabilitar todos (incluye el del modal)
 [btnScanSeco, btnScanNumRack, btnScanPosRack, btnScanRack].forEach(b => {
   if (b) {
     b.disabled = true;
@@ -726,9 +750,3 @@ const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("bu
     b.setAttribute("aria-disabled", "true");
   }
 });
-
-
-
-
-
-
