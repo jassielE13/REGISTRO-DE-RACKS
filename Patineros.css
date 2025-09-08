@@ -639,14 +639,31 @@ td.warn {
   color: var(--brand-2);
   box-shadow: inset 0 0 0 2px var(--brand-2);
 }
+
 /* === Estados texto-solo para Patineros === */
 /* Disponible = verde, Mantenimiento = ámbar, En uso = rojo */
-.ok   { color: var(--ok);     font-weight: 700; }
-.warn { color: var(--busy);   font-weight: 700; }   /* ámbar */
-.busy { color: var(--danger); font-weight: 700; }   /* rojo */
+.ok {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.warn {
+  color: var(--busy);
+  font-weight: 700;
+}
+
+/* ámbar */
+.busy {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* rojo */
 
 /* No quites bordes a las celdas: solo quita cualquier fondo */
-td.ok, td.busy, td.warn { 
+td.ok,
+td.busy,
+td.warn {
   background: transparent !important;
   /* ¡no tocar border! */
 }
@@ -656,5 +673,6 @@ td.ok, td.busy, td.warn {
 .tile-state.warn,
 .tile-state.busy {
   background: transparent !important;
-  border: none !important; /* aquí sí, porque son chips, no celdas de tabla */
+  border: none !important;
+  /* aquí sí, porque son chips, no celdas de tabla */
 }
