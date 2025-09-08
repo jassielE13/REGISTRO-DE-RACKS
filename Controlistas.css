@@ -19,11 +19,8 @@ body {
   --c-border: #d1d5db;
   --c-primary: #2563eb;
   --c-accent: #16a34a;
-  /* verde */
   --c-danger: #dc2626;
-  /* rojo */
-  --c-warn: #d97706;
-  /* ámbar */
+  --c-warn: #f59e0b;
   --radius: 0.75rem;
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
@@ -38,8 +35,7 @@ body {
     --c-primary: #3b82f6;
     --c-accent: #22c55e;
     --c-danger: #f87171;
-    --c-warn: #f59e0b;
-    /* ámbar más claro en dark */
+    --c-warn: #fbbf24;
     --shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
   }
 }
@@ -144,9 +140,8 @@ body {
   box-shadow: var(--shadow);
 }
 
-/* Buscadores / Select */
-.search,
-select {
+/* Buscadores */
+.search {
   width: min(280px, 48vw);
   padding: .6rem .8rem;
   border: 1px solid var(--c-border);
@@ -194,7 +189,7 @@ select {
 /* ===== FORMS / BUTTONS ===== */
 .field {
   display: grid;
-  gap: .35rem;
+  gap: .5rem;
 }
 
 .field input,
@@ -210,7 +205,6 @@ select {
 .with-actions {
   display: flex;
   gap: .5rem;
-  align-items: center;
 }
 
 .with-actions input {
@@ -271,7 +265,11 @@ button.ghost {
   border-radius: var(--radius);
 }
 
-/* ===== TABS (solo Pendientes) ===== */
+button.ghost:hover {
+  background: var(--c-border);
+}
+
+/* ===== TABS ===== */
 .tabs {
   margin-top: .5rem;
   display: grid;
@@ -354,7 +352,6 @@ button.ghost {
   padding: .2rem .5rem;
   border-radius: 999px;
   display: inline-block;
-  white-space: nowrap;
 }
 
 .state-ok {
@@ -372,7 +369,7 @@ button.ghost {
 .state-warn {
   background: rgba(245, 158, 11, .15);
   color: var(--c-warn);
-  border: 1px solid rgba(245, 158, 11, .35);
+  border: 1px solid rgba(245, 158, 11, .3);
 }
 
 @media (max-width: 1100px) {
@@ -475,6 +472,83 @@ button.ghost {
 }
 
 .actions.end {
+  display: flex;
+  gap: .5rem;
+  justify-content: flex-end;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .topbar .navbar {
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+
+  .with-actions {
+    flex-direction: column;
+  }
+
+  .details dl {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Avisos de comentarios (nuevo) ===== */
+.navbar a.has-unread::after {
+  content: attr(data-unread);
+  margin-left: .5rem;
+  display: inline-flex;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 .35rem;
+  align-items: center;
+  justify-content: center;
+  font-size: .75rem;
+  font-weight: 700;
+  border-radius: 999px;
+  background: var(--c-danger);
+  color: #fff;
+}
+
+.pulse-highlight {
+  animation: pulseGlow 1.2s ease-out 3;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, .55);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.comment-toast {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  background: var(--c-panel);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  box-shadow: var(--shadow);
+  z-index: 9999;
+  display: grid;
+  gap: .35rem;
+}
+
+.comment-toast .title {
+  font-weight: 700;
+}
+
+.comment-toast .actions {
   display: flex;
   gap: .5rem;
   justify-content: flex-end;
