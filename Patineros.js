@@ -712,20 +712,23 @@ renderAll();
 setInterval(() => renderSalidas(), 1000);
 
 // ====== Comentarios ======
-// (MODIFICADO) Envía ping para notificación en Controlistas
+// ====== Comentarios (Patineros) ======
+const COMMENTS_CH = new BroadcastChannel('patinero-comments');
+
 document.getElementById("formComentario")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const txt = (document.getElementById("comentario")?.value || "").trim();
   if (!txt) return;
-
   const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
   const user = JSON.parse(localStorage.getItem("CURRENT_USER") || "null");
-  const item = { by: user?.name || "Patinero", text: txt, at: new Date().toISOString() };
-
-  arr.push(item);
+  const payload = { by: user?.name || "Patinero", text: txt, at: new Date().toISOString() };
+  arr.push(payload);
   localStorage.setItem("comentarios", JSON.stringify(arr));
+  // notifica en tiempo real a Controlistas
+  COMMENTS_CH.postMessage({ type: 'nuevo-comentario', payload });
   e.target.reset();
   alert("Comentario enviado.");
+});
 
   // 🔔 Ping a Controlistas: dispara el evento 'storage' en otras pestañas
   try {
@@ -737,7 +740,6 @@ document.getElementById("formComentario")?.addEventListener("submit", (e) => {
     };
     localStorage.setItem("comment_ping", JSON.stringify(payload));
   } catch {}
-});
 
 // Deshabilitar botones de escaneo (si existen)
 const btnScanSeco    = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
@@ -750,3 +752,7 @@ const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("bu
     b.setAttribute("aria-disabled", "true");
   }
 });
+
+// ====== Inicialización ======
+renderAll();
+setInterval(() => renderAll(), 1000);
