@@ -21,31 +21,6 @@ function pad3(n){ return String(n).padStart(3,"0"); }
 function fmtDT(iso){ if(!iso) return "—"; const d=new Date(iso); return isNaN(d)? "—" : d.toLocaleString(); }
 function currentUser(){ try{return JSON.parse(localStorage.getItem("CURRENT_USER")||"null");}catch{return null;} }
 
-// ====== Notificaciones (permiso al cargar) ======
-if ("Notification" in window && Notification.permission === "default") {
-  Notification.requestPermission().catch(()=>{});
-}
-function notifyNewComment(data){
-  // Atualiza la lista de comentarios
-  try { renderComentarios(); } catch {}
-  // Si la pestaña no está en foco y hay permiso, muestra notificación
-  if ("Notification" in window && Notification.permission === "granted" && !document.hasFocus()) {
-    try {
-      new Notification("Nuevo comentario", {
-        body: `${data.by || "Patinero"}: ${String(data.text||"").slice(0, 90)}`,
-        tag: data.id,
-        renotify: false
-      });
-    } catch {}
-  }
-}
-// Escuchar pings desde Patineros
-window.addEventListener("storage", (e) => {
-  if (e.key === "comment_ping" && e.newValue) {
-    try { notifyNewComment(JSON.parse(e.newValue)); } catch {}
-  }
-});
-
 // ====== Estado ======
 let pendientes = loadJSON(LS_KEYS.CONTROLISTAS, []);
 let produccion = loadJSON(LS_KEYS.PRODUCCION, []);
@@ -118,7 +93,9 @@ const rkSoporte = $("#rkSoporte");
 const rkPorta   = $("#rkPorta");
 const rkTina    = $("#rkTina");
 
-// ====== Renders (Pendientes / Producción) ======
+const linkComentarios = $("#linkComentarios");
+
+// ====== Renders ======
 function renderPendientes(){
   const byLine = {1:[],2:[],3:[],4:[]};
   const base = (pendientes || []).filter(r => r?.tipo !== "salida");
@@ -315,18 +292,12 @@ function openHistInfo(reg){
   modalHistInfo.showModal();
 }
 
-/* ====== Helpers de estado (OK / ROJO / ÁMBAR) ====== */
+/* ==== POS/RACK estado con indicador ==== */
 function estadoToBadge(estado){
-  if (estado === "en_uso") {
-    return { cls: "state-busy", text: "En uso" };
-  }
-  if (estado === "mantenimiento") {
-    return { cls: "state-warn", text: "Mantenimiento" };
-  }
+  if (estado === "en_uso") return { cls: "state-busy", text: "En uso" };
+  if (estado === "mantenimiento") return { cls: "state-warn", text: "Mantenimiento" };
   return { cls: "state-ok", text: "Disponible" };
 }
-
-/* ====== POSICIONES (3 estados con ámbar) ====== */
 function tilePosHTML(label, estado){
   const { cls, text } = estadoToBadge(estado);
   return `
@@ -336,7 +307,7 @@ function tilePosHTML(label, estado){
 }
 function obtenerEstadoPos(key){
   const st = posStatus?.[key]?.estado;
-  if (st) return st; // 'disponible' | 'en_uso' | 'mantenimiento'
+  if (st) return st;
   return enUso.posiciones?.[key] ? "en_uso" : "disponible";
 }
 function renderPosCatalogo(filter=""){
@@ -353,8 +324,6 @@ function renderPosCatalogo(filter=""){
     gridPos.appendChild(li);
   }
 }
-
-/* ====== RACKS (3 estados con ámbar) ====== */
 function tileRackHTML(label, estado){
   const { cls, text } = estadoToBadge(estado);
   return `
@@ -364,7 +333,7 @@ function tileRackHTML(label, estado){
 }
 function obtenerEstadoRack(key){
   const st = rackStatus?.[key]?.estado;
-  if (st) return st; // 'disponible' | 'en_uso' | 'mantenimiento'
+  if (st) return st;
   return enUso.racks?.[key] ? "en_uso" : "disponible";
 }
 function renderRackCatalogo(filter=""){
@@ -392,16 +361,12 @@ rackSearch?.addEventListener("input", ()=> renderRackCatalogo(rackSearch.value))
 function renderComentarios(){
   ulComentarios.innerHTML = "";
   ulComentariosLeidos.innerHTML = "";
-
-  // Carga fresca desde localStorage
-  let pendientes = loadJSON(LS_KEYS.COMMENTS, []);
-  let leidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
-
-  // PENDIENTES
-  if (!pendientes.length){
+  const comentarios = loadJSON(LS_KEYS.COMMENTS, []);
+  const comentariosLeidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
+  if (!comentarios.length){
     ulComentarios.innerHTML = `<li style="opacity:.7">Sin comentarios pendientes</li>`;
   } else {
-    pendientes.slice().reverse().forEach(c => {
+    comentarios.slice().reverse().forEach(c => {
       const li = document.createElement("li");
       li.innerHTML = `
         <div class="row">
@@ -411,40 +376,23 @@ function renderComentarios(){
         <div>${c.text}</div>
         <div class="actions end"><button class="ghost">Leído</button></div>
       `;
-      li.querySelector("button").addEventListener("click", ()=> {
-        // 1) Quitar de pendientes
-        pendientes = loadJSON(LS_KEYS.COMMENTS, []).filter(x =>
-          !(x.by === c.by && x.text === c.text && x.at === c.at)
-        );
-        saveJSON(LS_KEYS.COMMENTS, pendientes);
-
-        // 2) Agregar a leídos
-        leidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
-        leidos.push(c);
-        saveJSON(LS_KEYS.COMMENTS_READ, leidos);
-
-        // 3) Notificar a otras pestañas (opcional)
-        try {
-          localStorage.setItem("comment_read_ping", JSON.stringify({
-            id: crypto.randomUUID(),
-            at: Date.now(),
-            by: c.by,
-            text: c.text
-          }));
-        } catch {}
-
-        // 4) Re-render inmediato (desaparece de pendientes)
+      li.querySelector("button").addEventListener("click", ()=>{
+        // mover a Leídos
+        const rest = loadJSON(LS_KEYS.COMMENTS, []).filter(x => !(x.at === c.at && x.text === c.text));
+        const done = loadJSON(LS_KEYS.COMMENTS_READ, []); done.push(c);
+        saveJSON(LS_KEYS.COMMENTS, rest);
+        saveJSON(LS_KEYS.COMMENTS_READ, done);
         renderComentarios();
+        updateCommentsBadge();            // << actualiza contador del menú
+        if (getPendingCommentsCount()===0) stopTitleBlink(); // << detén parpadeo si ya no hay pendientes
       });
       ulComentarios.appendChild(li);
     });
   }
-
-  // LEÍDOS
-  if (!leidos.length){
+  if (!comentariosLeidos.length){
     ulComentariosLeidos.innerHTML = `<li style="opacity:.7">Sin comentarios leídos</li>`;
   } else {
-    leidos.slice().reverse().forEach(c => {
+    comentariosLeidos.slice().reverse().forEach(c => {
       const li = document.createElement("li");
       li.innerHTML = `
         <div class="row">
@@ -568,7 +516,7 @@ infoActions.addEventListener("click", e=>{
   renderAll();
 });
 
-/* ====== Indicadores de estado (pill) ====== */
+/* ====== Indicadores pill ====== */
 function actualizarIndicadorPos(estado){
   const { cls, text } = estadoToBadge(estado);
   posEstadoIndicador.classList.remove("state-ok","state-busy","state-warn");
@@ -588,11 +536,11 @@ function openPosEditor(key){
   currentPosKey = key;
   posTitle.textContent = `Editar posición ${key}`;
 
-  const estadoActual = obtenerEstadoPos(key);
+  const st = posStatus[key] || {};
+  const estadoActual = st.estado || (enUso.posiciones?.[key] ? "en_uso" : "disponible");
   posEstado.value = estadoActual;
   actualizarIndicadorPos(estadoActual);
 
-  const st = posStatus[key] || {};
   posObs.value = st.obs || "";
   posActuador.checked = !!st.actuador;
   posTarjeta.checked  = !!st.tarjeta;
@@ -601,9 +549,7 @@ function openPosEditor(key){
 
   modalPos.showModal();
 }
-posEstado?.addEventListener("change", ()=>{
-  actualizarIndicadorPos(posEstado.value);
-});
+posEstado?.addEventListener("change", ()=> actualizarIndicadorPos(posEstado.value));
 formPos.addEventListener("click", (e)=>{
   const btn = e.target;
   if (!(btn instanceof HTMLButtonElement)) return;
@@ -639,11 +585,11 @@ function openRackEditor(key){
   currentRackKey = key;
   rackTitle.textContent = `Editar ${key}`;
 
-  const estadoActual = obtenerEstadoRack(key);
+  const st = rackStatus[key] || {};
+  const estadoActual = st.estado || (enUso.racks?.[key] ? "en_uso" : "disponible");
   rkEstado.value = estadoActual;
   actualizarIndicadorRack(estadoActual);
 
-  const st = rackStatus[key] || {};
   rkObs.value = st.obs || "";
   rkSoporte.checked = !!st.soporte_dren;
   rkPorta.checked   = !!st.porta_manguera;
@@ -651,15 +597,13 @@ function openRackEditor(key){
 
   modalRack.showModal();
 }
-rkEstado?.addEventListener("change", ()=>{
-  actualizarIndicadorRack(rkEstado.value);
-});
+rkEstado?.addEventListener("change", ()=> actualizarIndicadorRack(rkEstado.value));
 formRack.addEventListener("click", (e)=>{
   const btn = e.target;
   if (!(btn instanceof HTMLButtonElement)) return;
 
   if (btn.value === "save" && currentRackKey){
-    const estado = rkEstado.value; // 'disponible' | 'en_uso' | 'mantenimiento'
+    const estado = rkEstado.value;
 
     enUso.racks = enUso.racks || {};
     if (estado === "disponible") delete enUso.racks[currentRackKey];
@@ -682,6 +626,119 @@ formRack.addEventListener("click", (e)=>{
   if (btn.value === "cancel"){ modalRack.close(); }
 });
 
+/* ====== In-app alerts de Comentarios (badge, toast, título blinking) ====== */
+const COMMENTS_CH = new BroadcastChannel('patinero-comments');
+
+function getPendingCommentsCount() {
+  const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
+  return arr.length;
+}
+function updateCommentsBadge() {
+  const count = getPendingCommentsCount();
+  if (!linkComentarios) return;
+  if (count > 0) {
+    linkComentarios.classList.add('has-unread');
+    linkComentarios.setAttribute('data-unread', count);
+  } else {
+    linkComentarios.classList.remove('has-unread');
+    linkComentarios.removeAttribute('data-unread');
+  }
+}
+function showCommentToast() {
+  if (document.querySelector('.comment-toast')) return;
+  const toast = document.createElement('div');
+  toast.className = 'comment-toast';
+  toast.innerHTML = `
+    <div class="title">Nuevo comentario</div>
+    <div class="body">Tienes un comentario pendiente del patinero.</div>
+    <div class="actions">
+      <button class="primary" id="toastVer">Ver</button>
+      <button class="secondary" id="toastCerrar">Cerrar</button>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  $("#toastCerrar")?.addEventListener('click', ()=> toast.remove());
+  $("#toastVer")?.addEventListener('click', ()=> {
+    toast.remove();
+    location.hash = '#comentarios';
+    setTimeout(()=> {
+      try { renderComentarios?.(); } catch {}
+      $("#ulComentarios")?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  });
+}
+let titleBlinkTimer = null;
+const baseTitle = document.title || 'Controlistas';
+function startTitleBlink() {
+  if (titleBlinkTimer) return;
+  let on = false;
+  titleBlinkTimer = setInterval(()=> {
+    document.title = on ? `🟢 Nuevo comentario` : baseTitle;
+    on = !on;
+  }, 1200);
+}
+function stopTitleBlink() {
+  if (titleBlinkTimer) clearInterval(titleBlinkTimer);
+  titleBlinkTimer = null;
+  document.title = baseTitle;
+}
+window.addEventListener('hashchange', ()=> {
+  if (location.hash === '#comentarios') stopTitleBlink();
+});
+function beep() {
+  const a = $("#ping");
+  if (!a) return;
+  try { a.currentTime = 0; a.play(); } catch {}
+}
+function highlightCommentsPanel() {
+  updateCommentsBadge();
+  if (linkComentarios) {
+    linkComentarios.classList.add('pulse-highlight');
+    setTimeout(()=> linkComentarios.classList.remove('pulse-highlight'), 1800);
+  }
+  if (location.hash !== '#comentarios') {
+    showCommentToast();
+  } else {
+    try { renderComentarios?.(); } catch {}
+    $("#comentarios")?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+function onIncomingComment() {
+  highlightCommentsPanel();
+  startTitleBlink();
+  beep();
+  try { renderComentarios?.(); } catch {}
+}
+COMMENTS_CH.onmessage = (ev) => {
+  const msg = ev?.data || {};
+  if (msg.type === 'nuevo-comentario' && msg.payload) {
+    const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
+    const c = msg.payload;
+    const exists = arr.some(x => x.at === c.at && x.text === c.text);
+    if (!exists) {
+      arr.push(c);
+      localStorage.setItem("comentarios", JSON.stringify(arr));
+    }
+    onIncomingComment();
+  }
+};
+window.addEventListener('storage', (e) => {
+  if (e.key === 'comentarios') {
+    onIncomingComment();
+  }
+});
+updateCommentsBadge();
+
+// Hook para mantener badge actualizado tras renderComentarios
+const _origRenderComentarios = typeof renderComentarios === 'function' ? renderComentarios : null;
+if (_origRenderComentarios) {
+  window.renderComentarios = function() {
+    _origRenderComentarios();
+    updateCommentsBadge();
+    if (location.hash === '#comentarios') stopTitleBlink();
+  };
+}
+
 /* ====== Inicial ====== */
 function renderAll(){
   pendientes = loadJSON(LS_KEYS.CONTROLISTAS, []);
@@ -699,12 +756,7 @@ function renderAll(){
   renderHistorialSalidas();
   renderCatalogos();
   renderComentarios();
+  updateCommentsBadge();
 }
 renderAll();
-setInterval(renderAll, 4000);
-
-window.addEventListener("storage", (e)=>{
-  if (e.key === LS_KEYS.COMMENTS || e.key === LS_KEYS.COMMENTS_READ || e.key === "comment_read_ping") {
-    renderComentarios();
-  }
-});
+setInterval(renderAll, 1000);
