@@ -2,16 +2,18 @@
 // role: "patinero" | "controlista"
 const DIRECTORY = {
   // Ejemplos — ajusta a tus usuarios reales:
-  "63182": { name: "Jassiel", role: "patinero" },
-  "1001": { name: "Ana Pérez", role: "patinero" },
-  "2001": { name: "Luis Gómez", role: "controlista" },
-  "2002": { name: "María Ruiz", role: "controlista" }
+  "63182": { name: "Jassiel Escalante", role: "patinero" },
+  "1001": { name: "Jahir", role: "patinero" },
+  "2001": { name: "Eduardo", role: "controlista" },
+  "2002": { name: "Javier", role: "controlista" },
+  "20690": { name: "Carolina", role: "Admin" }
 };
 
 // Rutas de destino (ajusta si tu estructura difiere en GitHub Pages)
 const ROUTES = {
-  patinero: "./Patineros.html",
-  controlista: "./Controlistas.html"
+  patinero: "../Patineros/Patineros.html",
+  controlista: "../Controlistas/Controlistas.html",
+  Admin:"../Administrativo/Admin.html"
 };
 
 const form = document.getElementById("loginForm");
@@ -61,6 +63,8 @@ function showError(msg){
   errorMsg.hidden = false;
   employeeIdInput.focus();
 }
+
+
 
 
 
