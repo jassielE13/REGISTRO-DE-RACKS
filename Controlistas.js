@@ -1,4 +1,4 @@
-// ====== Keys ======
+// ====== Keys ====== 
 const LS_KEYS = {
   CONTROLISTAS: "controlistas_pendientes",
   PRODUCCION:   "controlistas_produccion",
@@ -361,8 +361,10 @@ rackSearch?.addEventListener("input", ()=> renderRackCatalogo(rackSearch.value))
 function renderComentarios(){
   ulComentarios.innerHTML = "";
   ulComentariosLeidos.innerHTML = "";
+
   const comentarios = loadJSON(LS_KEYS.COMMENTS, []);
   const comentariosLeidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
+
   if (!comentarios.length){
     ulComentarios.innerHTML = `<li style="opacity:.7">Sin comentarios pendientes</li>`;
   } else {
@@ -370,7 +372,7 @@ function renderComentarios(){
       const li = document.createElement("li");
       li.innerHTML = `
         <div class="row">
-          <strong>${c.by || "Patinero"}</strong>
+          <strong>${c.by || "Patinero"}</strong>   <!-- 👈 siempre se usa el 'by' original -->
           <small>${fmtDT(c.at)}</small>
         </div>
         <div>${c.text}</div>
@@ -379,29 +381,15 @@ function renderComentarios(){
       li.querySelector("button").addEventListener("click", ()=>{
         // mover a Leídos
         const rest = loadJSON(LS_KEYS.COMMENTS, []).filter(x => !(x.at === c.at && x.text === c.text));
-        const done = loadJSON(LS_KEYS.COMMENTS_READ, []); done.push(c);
+        const done = loadJSON(LS_KEYS.COMMENTS_READ, []); 
+        done.push(c); // 👈 mantiene el mismo autor (patinero)
         saveJSON(LS_KEYS.COMMENTS, rest);
         saveJSON(LS_KEYS.COMMENTS_READ, done);
         renderComentarios();
-        updateCommentsBadge();            // << actualiza contador del menú
-        if (getPendingCommentsCount()===0) stopTitleBlink(); // << detén parpadeo si ya no hay pendientes
+        updateCommentsBadge();
+        if (getPendingCommentsCount()===0) stopTitleBlink();
       });
       ulComentarios.appendChild(li);
-    });
-  }
-  if (!comentariosLeidos.length){
-    ulComentariosLeidos.innerHTML = `<li style="opacity:.7">Sin comentarios leídos</li>`;
-  } else {
-    comentariosLeidos.slice().reverse().forEach(c => {
-      const li = document.createElement("li");
-      li.innerHTML = `
-        <div class="row">
-          <strong>${c.by || "Patinero"}</strong>
-          <small>${fmtDT(c.at)}</small>
-        </div>
-        <div>${c.text}</div>
-      `;
-      ulComentariosLeidos.appendChild(li);
     });
   }
 }
@@ -737,6 +725,38 @@ if (_origRenderComentarios) {
     updateCommentsBadge();
     if (location.hash === '#comentarios') stopTitleBlink();
   };
+}
+
+/* ====== NUEVO: Sincronización instantánea por cambios en localStorage (desde Patineros) ====== */
+window.addEventListener("storage", (e) => {
+  const keysToWatch = [
+    LS_KEYS.EN_USO,
+    LS_KEYS.STATUS_POS_DET,
+    LS_KEYS.STATUS_RACKS_DET,
+    LS_KEYS.RETIRAR,
+    LS_KEYS.RETIRAR_HIST,
+    LS_KEYS.PRODUCCION,
+    LS_KEYS.CONTROLISTAS,
+    LS_KEYS.COMMENTS,
+    LS_KEYS.COMMENTS_READ
+  ];
+  if (keysToWatch.includes(e.key)) {
+    renderAll();
+  }
+
+  // Resalta tab de comentarios si llega un "ping" simple
+  if (e.key === "comment_ping") {
+    const link = document.querySelector('#mainNav a[href="#comentarios"]') || linkComentarios;
+    if (link) {
+      link.classList.add("has-unread");
+      setTimeout(() => link.classList.remove("has-unread"), 6000);
+    }
+  }
+});
+
+// (Opcional) Solicitar permiso para notificaciones nativas una sola vez
+if ("Notification" in window && Notification.permission === "default") {
+  Notification.requestPermission().catch(()=>{});
 }
 
 /* ====== Inicial ====== */
