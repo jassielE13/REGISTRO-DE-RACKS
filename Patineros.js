@@ -1,4 +1,4 @@
-// ====== Claves de almacenamiento ======
+// ====== Claves de almacenamiento ====== 
 const LS_KEYS = {
   FORM_LAST_BY_LINE: "patineros_form_last_by_line",
   CONTROLISTAS: "controlistas_pendientes",
@@ -33,21 +33,36 @@ const retirarListas = loadJSON(LS_KEYS.RETIRAR, { 1: [], 2: [], 3: [] });
 const salidasListas = loadJSON(LS_KEYS.SALIDAS, { 1: [], 2: [], 3: [] });
 
 // Mapas de solo lectura (llenados por Controlistas)
-const statusPosDet = loadJSON(LS_KEYS.STATUS_POS_DET, {});   // P001:{estado: 'disponible'|'en_uso'|'mantenimiento', ...}
+const statusPosDet = loadJSON(LS_KEYS.STATUS_POS_DET, {});     // P001:{estado: 'disponible'|'en_uso'|'mantenimiento', ...}
 const statusRacksDet = loadJSON(LS_KEYS.STATUS_RACKS_DET, {}); // Rack001:{estado: 'disponible'|'en_uso'|'mantenimiento', ...}
 
-// ====== Reconciliación de estados ======
-// - En SALIDAS sin salida: ocupa SOLO el rack (la posición ya quedó libre al retirar).
+/* ====== Reconciliación de estados (ARREGLADO) ======
+   - En RETIRAR: posición **y** rack ocupados (aún no se retira).
+   - En SALIDAS sin salida: SOLO el rack (posición ya quedó libre al retirar).
+*/
 function reconcileEnUso() {
   const nuevo = { posiciones: {}, racks: {} };
+
+  // 1) Todo lo que sigue en RETIRAR mantiene POS y RACK ocupados
+  const ret = loadJSON(LS_KEYS.RETIRAR, { 1: [], 2: [], 3: [] });
+  [1, 2, 3].forEach(l => {
+    (ret[l] || []).forEach(reg => {
+      if (reg?.posicion) nuevo.posiciones[reg.posicion] = true;
+      if (reg?.rack)     nuevo.racks[reg.rack] = true;
+    });
+  });
+
+  // 2) En SALIDAS sin salida: SOLO rack ocupado
   const s = loadJSON(LS_KEYS.SALIDAS, { 1: [], 2: [], 3: [] });
   [1, 2, 3].forEach(l => {
     (s[l] || []).forEach(reg => {
-      if (!reg?.salida) {
-        if (reg?.rack) nuevo.racks[reg.rack] = true;  // SOLO rack
+      if (!reg?.salida && reg?.rack) {
+        nuevo.racks[reg.rack] = true;
       }
     });
   });
+
+  // 3) Persistir
   enUso.posiciones = nuevo.posiciones;
   enUso.racks = nuevo.racks;
   safeSave(LS_KEYS.EN_USO, enUso);
@@ -711,7 +726,6 @@ renderAll();
 // refresco ligero para countdown de salida
 setInterval(() => renderSalidas(), 1000);
 
-// ====== Comentarios ======
 // ====== Comentarios (Patineros) ======
 const COMMENTS_CH = new BroadcastChannel('patinero-comments');
 
@@ -719,40 +733,23 @@ document.getElementById("formComentario")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const txt = (document.getElementById("comentario")?.value || "").trim();
   if (!txt) return;
-  const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
+
   const user = JSON.parse(localStorage.getItem("CURRENT_USER") || "null");
   const payload = { by: user?.name || "Patinero", text: txt, at: new Date().toISOString() };
+
+  // Guarda en localStorage (para Controlistas)
+  const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
   arr.push(payload);
   localStorage.setItem("comentarios", JSON.stringify(arr));
-  // notifica en tiempo real a Controlistas
+
+  // Notificación en tiempo real (si Controlistas está abierto)
   COMMENTS_CH.postMessage({ type: 'nuevo-comentario', payload });
+
+  // Ping por 'storage' (para otras pestañas/ventanas)
+  try {
+    localStorage.setItem("comment_ping", JSON.stringify({ ...payload, id: crypto.randomUUID() }));
+  } catch {}
+
   e.target.reset();
   alert("Comentario enviado.");
 });
-
-  // 🔔 Ping a Controlistas: dispara el evento 'storage' en otras pestañas
-  try {
-    const payload = {
-      id: crypto.randomUUID(),
-      by: item.by,
-      text: item.text,
-      at: Date.now()
-    };
-    localStorage.setItem("comment_ping", JSON.stringify(payload));
-  } catch {}
-
-// Deshabilitar botones de escaneo (si existen)
-const btnScanSeco    = inputCodigoSeco?.closest(".with-actions")?.querySelector("button");
-const btnScanNumRack = inputNumRack?.closest(".with-actions")?.querySelector("button");
-const btnScanPosRack = inputPosRack?.closest(".with-actions")?.querySelector("button");
-[btnScanSeco, btnScanNumRack, btnScanPosRack, btnScanRack].forEach(b => {
-  if (b) {
-    b.disabled = true;
-    b.title = "Escaneo deshabilitado";
-    b.setAttribute("aria-disabled", "true");
-  }
-});
-
-// ====== Inicialización ======
-renderAll();
-setInterval(() => renderAll(), 1000);
