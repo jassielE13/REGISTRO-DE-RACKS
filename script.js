@@ -11,9 +11,9 @@ const DIRECTORY = {
 
 // Rutas de destino (ajusta si tu estructura difiere en GitHub Pages)
 const ROUTES = {
-  patinero: "../Patineros/Patineros.html",
-  controlista: "../Controlistas/Controlistas.html",
-  Admin:"../Administrativo/Admin.html"
+  patinero: "./Patineros.html",
+  controlista: "./Controlistas.html",
+  Admin:"./Admin.html"
 };
 
 const form = document.getElementById("loginForm");
@@ -63,6 +63,7 @@ function showError(msg){
   errorMsg.hidden = false;
   employeeIdInput.focus();
 }
+
 
 
 
