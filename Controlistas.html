@@ -6,29 +6,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="Controlistas.css" />
   <script>
-    if (!location.hash) location.replace(location.pathname + '#pendientes');
+    if (!location.hash) location.replace(location.pathname + '#validar');
   </script>
 </head>
 <body>
+  <!-- TOPBAR -->
   <header class="topbar">
-    <div class="brand">🎛️ Controlistas</div>
-    <nav class="navbar" id="mainNav">
-      <a href="#pendientes">Pendientes</a>
-      <a href="#produccion">Producción</a>
-      <a href="#retirar">Retirar</a>
+    <button class="hamburger" id="menuToggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="sidebar">
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="topnav">
+      <a href="#validar">Validación de Módulos</a>
+      <a href="#arranque">Arranque de programa</a>
+      <a href="#ordenes">Órdenes por crear</a>
+      <a href="#confirmacion">Confirmación de fin</a>
+      <a href="#produccion">Secuencia de producción</a>
       <a href="#posiciones">Posiciones</a>
       <a href="#racks">Racks</a>
-      <!-- IMPORTANTE: ID para el badge/efecto -->
       <a href="#comentarios" id="linkComentarios">Comentarios</a>
     </nav>
+
     <a href="../Login/index.html" class="logout">Salir</a>
   </header>
 
-  <main class="container">
+  <!-- SIDEBAR (solo Historial) -->
+  <aside class="sidebar" id="sidebar" aria-hidden="true">
+    <nav class="sidenav">
+      <a href="#historial" class="accent">Historial</a>
+    </nav>
+  </aside>
+  <div class="backdrop" id="backdrop" hidden></div>
 
-    <!-- PENDIENTES -->
-    <section id="pendientes" class="panel">
-      <header class="panel-header"><h2>Pendientes por validar</h2></header>
+  <main class="container">
+    <!-- VALIDACIÓN -->
+    <section id="validar" class="panel">
+      <header class="panel-header"><h2>Validación de Módulos</h2></header>
 
       <div class="tabs">
         <input type="radio" id="pendL1" name="pendTabs" checked />
@@ -46,87 +59,91 @@
         <div class="tab-content">
           <div class="tab-pane">
             <table class="table" id="tblPend1">
-              <thead>
-                <tr>
-                  <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                  <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-                </tr>
-              </thead><tbody></tbody>
+              <thead><tr>
+                <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+                <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
+              </tr></thead><tbody></tbody>
             </table>
           </div>
           <div class="tab-pane">
             <table class="table" id="tblPend2">
-              <thead>
-                <tr>
-                  <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                  <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-                </tr>
-              </thead><tbody></tbody>
+              <thead><tr>
+                <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+                <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
+              </tr></thead><tbody></tbody>
             </table>
           </div>
           <div class="tab-pane">
             <table class="table" id="tblPend3">
-              <thead>
-                <tr>
-                  <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                  <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-                </tr>
-              </thead><tbody></tbody>
+              <thead><tr>
+                <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+                <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
+              </tr></thead><tbody></tbody>
             </table>
           </div>
           <div class="tab-pane">
             <table class="table" id="tblPend4">
-              <thead>
-                <tr>
-                  <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                  <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-                </tr>
-              </thead><tbody></tbody>
+              <thead><tr>
+                <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+                <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
+              </tr></thead><tbody></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <p class="hint">Usa <em>Validar</em> para confirmar el código de seco. Al guardar, el registro pasa a <a href="#produccion">Producción</a>.</p>
+      <p class="hint">
+        El controlista captura <strong>Posición</strong>, <strong>Rack</strong> y <strong>Código de seco</strong> (con opción de <em>escanear</em>).
+        Al guardar, pasa a <strong>Arranque de programa</strong>.
+      </p>
+    </section>
+
+    <!-- ARRANQUE -->
+    <section id="arranque" class="panel">
+      <header class="panel-header"><h2>Arranque de programa</h2></header>
+      <table class="table" id="tblArranque">
+        <thead><tr>
+          <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+          <th>Rack</th><th>Posición</th><th>Acción</th>
+        </tr></thead><tbody></tbody>
+      </table>
+      <p class="hint">Configura <strong>hora de arranque</strong> y <strong>tiempo de carga (h)</strong> por registro.</p>
+    </section>
+
+    <!-- ÓRDENES -->
+    <section id="ordenes" class="panel">
+      <header class="panel-header"><h2>Órdenes por crear</h2></header>
+      <table class="table" id="tblOrdenes">
+        <thead><tr>
+          <th>Arranque</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+          <th>Rack</th><th>Posición</th><th>Acción</th>
+        </tr></thead><tbody></tbody>
+      </table>
+    </section>
+
+    <!-- CONFIRMACIÓN -->
+    <section id="confirmacion" class="panel">
+      <header class="panel-header"><h2>Confirmación de fin</h2></header>
+      <table class="table" id="tblConfirm">
+        <thead><tr>
+          <th>Arranque</th><th>Tiempo carga</th><th>Restante</th>
+          <th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th><th>Acción</th>
+        </tr></thead><tbody></tbody>
+      </table>
     </section>
 
     <!-- PRODUCCIÓN -->
     <section id="produccion" class="panel">
       <header class="panel-header row-between">
-        <h2>Producción</h2>
+        <h2>Secuencia de producción</h2>
         <span id="prodTotal" class="badge">Total: 0</span>
       </header>
       <table class="table" id="tblProdAll">
-        <thead>
-          <tr>
-            <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-            <th>Rack</th><th>Posición</th><th>Validado por</th>
-          </tr>
-        </thead><tbody></tbody>
+        <thead><tr>
+          <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+          <th>Rack</th><th>Posición</th><th>Validado/Orden</th>
+        </tr></thead><tbody></tbody>
       </table>
-      <p class="hint">Haz clic en cualquier registro para ver su detalle y elegir a qué <strong>Línea 1–3</strong> mandarlo a <strong>Retirar</strong> (salidas).</p>
-    </section>
-
-    <!-- HISTORIAL (Salidas) -->
-    <section id="retirar" class="panel">
-      <header class="panel-header row-between">
-        <h2>Historial de Salidas</h2>
-        <select id="histRange" class="search">
-          <option value="all">Todo</option>
-          <option value="today">Hoy</option>
-          <option value="7">Últimos 7 días</option>
-          <option value="30">Últimos 30 días</option>
-        </select>
-      </header>
-      <table class="table" id="tblHistAll">
-        <thead>
-          <tr>
-            <th>Fecha salida</th><th>Línea</th><th>Operador</th><th>Código seco</th>
-            <th>Cantidad</th><th>Rack</th><th>Posición</th><th>Validado/Salida por</th>
-          </tr>
-        </thead><tbody></tbody>
-      </table>
-      <p class="hint">Haz clic en un registro para ver el detalle completo.</p>
     </section>
 
     <!-- POSICIONES -->
@@ -136,7 +153,6 @@
         <input id="posSearch" class="search" type="search" placeholder="Buscar" />
       </header>
       <ul id="gridPos" class="grid-catalogo"></ul>
-      <p class="hint">Toca cualquier posición para editar estado y observaciones.</p>
     </section>
 
     <!-- RACKS -->
@@ -146,7 +162,6 @@
         <input id="rackSearch" class="search" type="search" placeholder="Buscar" />
       </header>
       <ul id="gridRack" class="grid-catalogo"></ul>
-      <p class="hint">Toca cualquier rack para editar estado y observaciones.</p>
     </section>
 
     <!-- COMENTARIOS -->
@@ -154,21 +169,66 @@
       <header class="panel-header"><h2>Comentarios</h2></header>
       <h3 style="margin:.25rem 0 .5rem">Pendientes</h3>
       <ul id="ulComentarios" class="comments"></ul>
-
       <h3 style="margin:1rem 0 .5rem">Leídos</h3>
       <ul id="ulComentariosLeidos" class="comments muted"></ul>
-      <p class="hint">Pulsa <em>Leído</em> para mover el comentario a su listado.</p>
+    </section>
+
+    <!-- HISTORIAL -->
+    <section id="historial" class="panel">
+      <header class="panel-header row-between">
+        <h2>Historial</h2>
+        <div class="row-between" style="gap:.5rem">
+          <select id="histRange" class="search">
+            <option value="all">Todo</option>
+            <option value="today">Hoy</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+          </select>
+          <select id="shiftRange" class="search">
+            <option value="all">Todos los turnos</option>
+            <option value="day">Turno Día (06:30–14:30)</option>
+            <option value="evening">Turno Tarde (14:30–22:30)</option>
+            <option value="night">Turno Noche (22:30–06:30)</option>
+          </select>
+          <button id="histCSV" class="ghost">Exportar CSV</button>
+        </div>
+      </header>
+      <table class="table" id="tblHistAll">
+        <thead><tr>
+          <th>Fecha salida</th><th>Turno</th><th>Línea</th><th>Operador</th><th>Código seco</th>
+          <th>Cantidad</th><th>Rack</th><th>Posición</th><th>Validado/Salida por</th>
+        </tr></thead><tbody></tbody>
+      </table>
+      <p class="hint">Clic en un registro para ver detalle completo.</p>
     </section>
   </main>
 
-  <!-- Modales -->
+  <!-- MODALES -->
   <!-- Validar -->
   <dialog id="modalValidar" class="modal">
     <form method="dialog" class="modal-content" id="formValidar">
-      <h3>Validar código de seco</h3>
+      <h3>Validar módulo</h3>
       <p id="valResumen" class="resume">—</p>
       <div id="valDetalle" class="details"></div>
       <div id="valChips" class="status-chips"></div>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Posición</span>
+          <div class="with-actions">
+            <input id="valPosicion" type="text" placeholder="Ej. P012" required />
+            <button type="button" class="ghost" id="btnScanPos">Escanear</button>
+          </div>
+        </label>
+        <label class="field">
+          <span>Rack</span>
+          <div class="with-actions">
+            <input id="valRack" type="text" placeholder="Ej. Rack045" required />
+            <button type="button" class="ghost" id="btnScanRack">Escanear</button>
+          </div>
+        </label>
+      </div>
+
       <label class="field" style="margin-top:.5rem">
         <span>Código de seco (escriba o escanee)</span>
         <div class="with-actions">
@@ -176,6 +236,7 @@
           <button type="button" class="ghost" id="btnScanVal">Escanear QR</button>
         </div>
       </label>
+
       <div class="actions end">
         <button class="primary" value="save">Guardar</button>
         <button class="secondary" value="cancel">Cancelar</button>
@@ -183,17 +244,32 @@
     </form>
   </dialog>
 
-  <!-- Info registro (Producción) -->
+  <!-- Arranque -->
+  <dialog id="modalArranque" class="modal">
+    <form method="dialog" class="modal-content" id="formArranque">
+      <h3>Configurar arranque</h3>
+      <div class="grid2">
+        <label class="field">
+          <span>Fecha y hora de arranque</span>
+          <input id="arranqueDT" type="datetime-local" required />
+        </label>
+        <label class="field">
+          <span>Tiempo de carga (horas)</span>
+          <input id="arranqueHoras" type="number" min="1" step="1" value="24" required />
+        </label>
+      </div>
+      <div class="actions end">
+        <button class="primary" value="save">Arrancar</button>
+        <button class="secondary" value="cancel">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Info registro -->
   <dialog id="modalInfo" class="modal">
     <form method="dialog" class="modal-content">
       <h3>Detalle del registro</h3>
       <div id="infoBody" class="details"></div>
-      <div id="infoActions" class="actions end">
-        <span style="margin-right:auto;opacity:.8">Mandar a Retirar en:</span>
-        <button type="button" class="accent" data-linea="1">Línea 1</button>
-        <button type="button" class="accent" data-linea="2">Línea 2</button>
-        <button type="button" class="accent" data-linea="3">Línea 3</button>
-      </div>
       <div class="actions end">
         <button class="secondary" value="close">Cerrar</button>
       </div>
@@ -203,81 +279,13 @@
   <!-- Info Historial -->
   <dialog id="modalHistInfo" class="modal">
     <form method="dialog" class="modal-content">
-      <h3>Detalle de la salida</h3>
+      <h3>Detalle completo</h3>
       <div id="histInfoBody" class="details"></div>
       <div class="actions end">
         <button class="secondary" value="close">Cerrar</button>
       </div>
     </form>
   </dialog>
-
-  <!-- Editar Posición -->
-  <dialog id="modalPos" class="modal">
-    <form method="dialog" class="modal-content" id="formPos">
-      <h3 id="posTitle">Editar posición</h3>
-      <label class="field">
-        <span>Estado</span>
-        <select id="posEstado">
-          <option value="disponible">Disponible</option>
-          <option value="en_uso">En uso</option>
-          <option value="mantenimiento">Mantenimiento</option>
-        </select>
-      </label>
-      <div class="readonly-block">
-        <span class="tile-state state-ok" id="posEstadoIndicador">Disponible</span>
-      </div>
-      <div class="editor">
-        <label class="chip"><input type="checkbox" id="posActuador"> Actuador dañado</label>
-        <label class="chip"><input type="checkbox" id="posTarjeta"> Tarjeta dañada</label>
-        <label class="chip"><input type="checkbox" id="posAbraz"> Abrazaderas manifold dañadas</label>
-        <label class="chip"><input type="checkbox" id="posCable"> Cable de bajada dañado</label>
-      </div>
-      <label class="field">
-        <span>Observaciones</span>
-        <textarea id="posObs" rows="3" placeholder="Notas, detalles, etc."></textarea>
-      </label>
-      <div class="actions end">
-        <button class="primary" value="save">Guardar</button>
-        <button class="secondary" value="cancel">Cancelar</button>
-      </div>
-    </form>
-  </dialog>
-
-  <!-- Editar Rack -->
-  <dialog id="modalRack" class="modal">
-    <form method="dialog" class="modal-content" id="formRack">
-      <h3 id="rackTitle">Editar rack</h3>
-      <label class="field">
-        <span>Estado</span>
-        <select id="rkEstado">
-          <option value="disponible">Disponible</option>
-          <option value="en_uso">En uso</option>
-          <option value="mantenimiento">Mantenimiento</option>
-        </select>
-      </label>
-      <div class="readonly-block">
-        <span class="tile-state state-ok" id="rkEstadoIndicador">Disponible</span>
-      </div>
-      <div class="editor">
-        <label class="chip"><input type="checkbox" id="rkSoporte"> Soporte de dren dañado</label>
-        <label class="chip"><input type="checkbox" id="rkPorta"> Porta manguera dañada</label>
-        <label class="chip"><input type="checkbox" id="rkTina"> Tina dañada</label>
-      </div>
-      <label class="field">
-        <span>Observaciones</span>
-        <textarea id="rkObs" rows="3" placeholder="Notas, detalles, etc."></textarea>
-      </label>
-      <div class="actions end">
-        <button class="primary" value="save">Guardar</button>
-        <button class="secondary" value="cancel">Cancelar</button>
-      </div>
-    </form>
-  </dialog>
-
-  <!-- Sonido opcional para nuevo comentario -->
-  <audio id="ping" preload="auto">
-    <source src="data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAA" type="audio/mpeg">
-  </audio>
 
   <script src="Controlistas.js"></script>
 </body>
