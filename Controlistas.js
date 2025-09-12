@@ -1,782 +1,158 @@
-// ====== Keys ====== 
-const LS_KEYS = {
-  CONTROLISTAS: "controlistas_pendientes",
-  PRODUCCION:   "controlistas_produccion",
-  RETIRAR:      "retirar_listas",
-  RETIRAR_HIST: "retirar_historial_all",
-  STATUS_POS_DET:  "status_posiciones_detalle",
-  STATUS_RACKS_DET: "status_racks_detalle",
-  COMMENTS:     "comentarios",
-  COMMENTS_READ:"comentarios_leidos",
-  EN_USO:       "en_uso",
-  HIST:         "historial_movimientos"
-};
+// ========== Controlistas.js (con progreso animado en “Restante”) ==========
+const K={PEND:"controlistas_pendientes",ARR:"controlistas_arranque",ORD:"controlistas_ordenes",CON:"controlistas_confirm",PROD:"controlistas_produccion",RET:"retirar_listas",RETH:"retirar_historial_all",PSTAT:"status_posiciones_detalle",RSTAT:"status_racks_detalle",COM:"comentarios",COMR:"comentarios_leidos",USE:"en_uso"};
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s)), J=(k,f)=>{try{let v=localStorage.getItem(k);return v?JSON.parse(v):f}catch{return f}}, S=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const pad=n=>String(n).padStart(3,"0"), now=()=>new Date().toISOString(), dt=s=>{if(!s)return"—";let d=new Date(s);return isNaN(d)?"—":d.toLocaleString()}, cur=()=>{try{return JSON.parse(localStorage.getItem("CURRENT_USER")||"null")}catch{return null}}, isoLocal=t=>{if(!t)return now();let d=new Date(t);return isNaN(d)?now():d.toISOString()}, hms=ms=>{if(ms<0)ms=0;let s=Math.floor(ms/1e3),h=String(Math.floor(s/3600)).padStart(2,"0"),m=String(Math.floor(s%3600/60)).padStart(2,"0"),se=String(s%60).padStart(2,"0");return`${h}:${m}:${se}`};
 
-// ====== Utils ======
-const $ = (sel, root=document)=> root.querySelector(sel);
-const $$ = (sel, root=document)=> Array.from(root.querySelectorAll(sel));
-function loadJSON(k, fb){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):fb; }catch{return fb;} }
-function saveJSON(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
-function pad3(n){ return String(n).padStart(3,"0"); }
-function fmtDT(iso){ if(!iso) return "—"; const d=new Date(iso); return isNaN(d)? "—" : d.toLocaleString(); }
-function currentUser(){ try{return JSON.parse(localStorage.getItem("CURRENT_USER")||"null");}catch{return null;} }
+let P=J(K.PEND,[]),A=J(K.ARR,[]),O=J(K.ORD,[]),C=J(K.CON,[]),PR=J(K.PROD,[]), PS=J(K.PSTAT,{}), RS=J(K.RSTAT,{}), EU=J(K.USE,{posiciones:{},racks:{}});
 
-// ====== Estado ======
-let pendientes = loadJSON(LS_KEYS.CONTROLISTAS, []);
-let produccion = loadJSON(LS_KEYS.PRODUCCION, []);
-let retirar    = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[],4:[]});
-let retirarHist= loadJSON(LS_KEYS.RETIRAR_HIST, []);
-let posStatus  = loadJSON(LS_KEYS.STATUS_POS_DET, {});
-let rackStatus = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});
-let comentarios= loadJSON(LS_KEYS.COMMENTS, []);
-let comentariosLeidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
-let enUso      = loadJSON(LS_KEYS.EN_USO, {posiciones:{}, racks:{}});
+// Sidebar
+const mT=$("#menuToggle"), sb=$("#sidebar"), bd=$("#backdrop");
+function menu(o){document.body.classList.toggle("menu-open",!!o); sb?.setAttribute("aria-hidden",o?"false":"true"); mT?.setAttribute("aria-expanded",o?"true":"false"); bd.hidden=!o}
+mT?.addEventListener("click",()=>menu(!document.body.classList.contains("menu-open"))); bd?.addEventListener("click",()=>menu(false)); $$(".sidenav a").forEach(a=>a.addEventListener("click",()=>menu(false)));
 
-// ====== Nav activo ======
-function highlightActive(){
-  const hash = location.hash || "#pendientes";
-  $$("#mainNav a").forEach(a => a.classList.toggle("active", a.getAttribute("href")===hash));
-}
-window.addEventListener("hashchange", highlightActive);
-highlightActive();
+// Topnav activa
+function markActive(){const h=(location.hash||"").toLowerCase()||"#validar"; $$(".topnav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href").toLowerCase()===h));}
+window.addEventListener("hashchange",()=>{ markActive(); if(location.hash==="#confirmacion") rCon(); });
+markActive();
 
-// ====== DOM refs ======
-const tblPend = { 1: $("#tblPend1 tbody"), 2: $("#tblPend2 tbody"), 3: $("#tblPend3 tbody"), 4: $("#tblPend4 tbody") };
-const tblProdAll = $("#tblProdAll tbody");
-const tblHistAll = $("#tblHistAll tbody");
-const histRange  = $("#histRange");
+// Refs
+const TP={1:$("#tblPend1 tbody"),2:$("#tblPend2 tbody"),3:$("#tblPend3 tbody"),4:$("#tblPend4 tbody")}, TA=$("#tblArranque tbody"), TO=$("#tblOrdenes tbody"), TC=$("#tblConfirm tbody"), TPA=$("#tblProdAll tbody"), PT=$("#prodTotal"), TH=$("#tblHistAll tbody");
+const HR=$("#histRange"), SR=$("#shiftRange"), CSV=$("#histCSV"), GP=$("#gridPos"), GR=$("#gridRack"), PSR=$("#posSearch"), RSR=$("#rackSearch");
+const MDV=$("#modalValidar"), FMV=$("#formValidar"), VRES=$("#valResumen"), VDET=$("#valDetalle"), VCH=$("#valChips"), VC=$("#valCodigo"), VPOS=$("#valPosicion"), VRK=$("#valRack"), BTN_SCAN_POS=$("#btnScanPos"), BTN_SCAN_RK=$("#btnScanRack"), BTN_SCAN_CODE=$("#btnScanVal");
+const MDA=$("#modalArranque"), FMA=$("#formArranque"), ADT=$("#arranqueDT"), AHR=$("#arranqueHoras");
+const MDI=$("#modalInfo"), IB=$("#infoBody"); const MDH=$("#modalHistInfo"), HIB=$("#histInfoBody");
 
-const gridPos = $("#gridPos");
-const gridRack = $("#gridRack");
-const posSearch = $("#posSearch");
-const rackSearch = $("#rackSearch");
-const ulComentarios = $("#ulComentarios");
-const ulComentariosLeidos = $("#ulComentariosLeidos");
+// ===== Validación =====
+function rPend(){let by={1:[],2:[],3:[],4:[]}; (P||[]).filter(r=>r?.tipo!=="salida").forEach(r=>(by[r.linea]=by[r.linea]||[]).push(r));
+[1,2,3,4].forEach(l=>{let tb=TP[l]; if(!tb)return; tb.innerHTML=""; let arr=by[l]||[]; if(!arr.length){tb.innerHTML=`<tr><td colspan="8" style="text-align:center;opacity:.7">Sin pendientes</td></tr>`;return}
+arr.forEach(r=>{let tr=document.createElement("tr"); tr.innerHTML=`<td>${dt(r.creadoEn)}</td><td>${r.operador??"—"}</td><td>${r.codigoSeco??"—"}</td><td>${r.cantidad??"—"}</td><td>${r.rack??"—"}</td><td>${r.posicion??"—"}</td><td>${r.registradoPorNombre??"—"}</td><td><button class="primary">Validar</button></td>`;
+tr.querySelector("button").onclick=()=>oVal(r); tb.appendChild(tr)})})}
+let curV=null; function oVal(r){curV=r; VRES.textContent=`Línea ${r.linea} | Posición ${r.posicion??"—"} | Rack ${r.rack??"—"}`;
+VDET.innerHTML=`<dl><dt>Operador</dt><dd>${r.operador??"—"}</dd><dt>Código de seco (esperado)</dt><dd>${r.codigoSeco??"—"}</dd><dt>Cantidad</dt><dd>${r.cantidad??"—"}</dd><dt>Registrado por</dt><dd>${r.registradoPorNombre??"—"}</dd><dt>Creado en</dt><dd>${dt(r.creadoEn)}</dd></dl>`;
+VCH.innerHTML=`<span class="tile-state ${EU.posiciones?.[r.posicion]?'state-busy':'state-ok'}">${EU.posiciones?.[r.posicion]?'Posición Ocupada':'Posición Disponible'}</span>
+<span class="tile-state ${EU.racks?.[r.rack]?'state-busy':'state-ok'}">${EU.racks?.[r.rack]?'Rack en uso':'Rack listo'}</span>`;
+VPOS.value=r.posicion||""; VRK.value=r.rack||""; VC.value=""; MDV.showModal()}
+BTN_SCAN_POS?.addEventListener("click",()=>{let v=prompt("Escanear Posición (simulado). Ej: P004"); if(v) VPOS.value=v.trim()});
+BTN_SCAN_RK?.addEventListener("click",()=>{let v=prompt("Escanear Rack (simulado). Ej: Rack004"); if(v) VRK.value=v.trim()});
+BTN_SCAN_CODE?.addEventListener("click",()=>{let v=prompt("Escanear Código de seco (simulado)"); if(v) VC.value=v.trim()});
+FMV?.addEventListener("click",e=>{let b=e.target; if(!(b instanceof HTMLButtonElement))return;
+if(b.value==="save"&&curV){let pos=VPOS.value.trim(), rk=VRK.value.trim(), cod=VC.value.trim(); if(!pos)return alert("Captura la Posición."); if(!rk)return alert("Captura el Rack."); if(!cod)return alert("Captura o escanea el Código de seco.");
+if(curV.codigoSeco && cod!==curV.codigoSeco && !confirm("No coincide el código. ¿Continuar?"))return;
+let u=cur(), v={...curV,posicion:pos,rack:rk,codigoSeco:cod,validadoEn:now(),validadoPorId:u?.id||null,validadoPorNombre:u?.name||"Controlista"};
+let arr=J(K.ARR,[]); arr.push(v); S(K.ARR,arr); P=P.filter(x=>x.id!==curV.id); S(K.PEND,P); MDV.close(); curV=null; render()}
+if(b.value==="cancel"){MDV.close(); curV=null}});
 
-// Modales Validación
-const modalValidar = $("#modalValidar");
-const formValidar = $("#formValidar");
-const valResumen = $("#valResumen");
-const valDetalle = $("#valDetalle");
-const valChips   = $("#valChips");
-const valCodigo  = $("#valCodigo");
-const btnScanVal = $("#btnScanVal");
+// ===== Arranque =====
+let curA=null; function oArr(r){curA=r; let d=new Date(),p=n=>String(n).padStart(2,"0"); ADT.value=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; AHR.value=24; MDA.showModal()}
+FMA?.addEventListener("click",e=>{let b=e.target; if(!(b instanceof HTMLButtonElement))return;
+if(b.value==="save"&&curA){let t=ADT.value, h=parseInt(AHR.value,10); if(!t)return alert("Indica fecha/hora de arranque."); if(isNaN(h)||h<1)return alert("Horas de carga inválidas.");
+let u=cur(), st={...curA,arranque:{at:isoLocal(t),byId:u?.id||null,byName:u?.name||"Controlista"},carga:{ms:h*3600*1000,from:isoLocal(t)}}; let nx=J(K.ORD,[]); nx.push(st); S(K.ORD,nx); S(K.ARR,(J(K.ARR,[])||[]).filter(x=>(x.id||x._id)!==(curA.id||curA._id))); MDA.close(); curA=null; render()}
+if(b.value==="cancel"){MDA.close(); curA=null}});
 
-// Modal Info (Producción)
-const modalInfo = $("#modalInfo");
-const infoBody  = $("#infoBody");
-const infoActions = $("#infoActions");
+// ===== Arranque / Órdenes / Confirm =====
+function rArr(){TA.innerHTML=""; let a=J(K.ARR,[]); if(!a.length){TA.innerHTML=`<tr><td colspan="8" style="text-align:center;opacity:.7">Sin registros</td></tr>`;return}
+a.forEach(r=>{let tr=document.createElement("tr"); tr.innerHTML=`<td>${dt(r.creadoEn)}</td><td>${r.linea??"—"}</td><td>${r.operador??"—"}</td><td>${r.codigoSeco??"—"}</td><td>${r.cantidad??"—"}</td><td>${r.rack??"—"}</td><td>${r.posicion??"—"}</td><td><button class="accent">Arrancar</button></td>`;
+tr.querySelector("button").onclick=()=>oArr(r); TA.appendChild(tr)})}
+function rOrd(){TO.innerHTML=""; let a=J(K.ORD,[]); if(!a.length){TO.innerHTML=`<tr><td colspan="8" style="text-align:center;opacity:.7">Sin registros</td></tr>`;return}
+a.forEach(r=>{let tr=document.createElement("tr"); tr.innerHTML=`<td>${dt(r.arranque?.at)}</td><td>${r.linea??"—"}</td><td>${r.operador??"—"}</td><td>${r.codigoSeco??"—"}</td><td>${r.cantidad??"—"}</td><td>${r.rack??"—"}</td><td>${r.posicion??"—"}</td><td><button class="primary">Orden creada</button></td>`;
+tr.querySelector("button").onclick=()=>{let u=cur(), o={...r,orden:{at:now(),byId:u?.id||null,byName:u?.name||"Controlista"}}; o.carga={ms:o.carga?.ms??24*3600*1000,from:o.carga?.from??(o.arranque?.at||now())};
+let nx=J(K.CON,[]); nx.push(o); S(K.CON,nx); S(K.ORD,(J(K.ORD,[])||[]).filter(x=>(x.id||x._id)!==(r.id||r._id))); render()}; TO.appendChild(tr)})}
 
-// Modal Info Historial
-const modalHistInfo = $("#modalHistInfo");
-const histInfoBody  = $("#histInfoBody");
+// ---- Confirmación con barra animada ----
+let timers=[];
+function clearTimers(){timers.forEach(id=>clearInterval(id)); timers=[]}
+function makeRestanteCell(fromISO, msDur){
+  const from=new Date(fromISO), end=from.getTime()+msDur;
+  const wrap=document.createElement("div"); wrap.className="restante-wrap";
+  const p=document.createElement("div"); p.className="progress";
+  const bar=document.createElement("div"); bar.className="bar";
+  const lbl=document.createElement("div"); lbl.className="label"; lbl.textContent="—";
+  p.append(bar,lbl); wrap.appendChild(p);
 
-// Modales Pos/Rack
-const modalPos  = $("#modalPos");
-const posTitle  = $("#posTitle");
-const formPos   = $("#formPos");
-const posEstado = $("#posEstado");
-const posEstadoIndicador = $("#posEstadoIndicador");
-const posObs    = $("#posObs");
-const posActuador = $("#posActuador");
-const posTarjeta  = $("#posTarjeta");
-const posAbraz    = $("#posAbraz");
-const posCable    = $("#posCable");
-
-const modalRack = $("#modalRack");
-const rackTitle = $("#rackTitle");
-const formRack  = $("#formRack");
-const rkEstado  = $("#rkEstado");
-const rkEstadoIndicador = $("#rkEstadoIndicador");
-const rkObs     = $("#rkObs");
-const rkSoporte = $("#rkSoporte");
-const rkPorta   = $("#rkPorta");
-const rkTina    = $("#rkTina");
-
-const linkComentarios = $("#linkComentarios");
-
-// ====== Renders ======
-function renderPendientes(){
-  const byLine = {1:[],2:[],3:[],4:[]};
-  const base = (pendientes || []).filter(r => r?.tipo !== "salida");
-  base.forEach(r => (byLine[r.linea] = byLine[r.linea] || []).push(r));
-
-  [1,2,3,4].forEach(l => {
-    const tb = tblPend[l]; if (!tb) return; tb.innerHTML = "";
-    const arr = byLine[l] || [];
-    if (!arr.length){
-      tb.innerHTML = `<tr><td colspan="8" style="text-align:center;opacity:.7">Sin pendientes</td></tr>`;
-      return;
-    }
-    arr.forEach(reg => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${fmtDT(reg.creadoEn)}</td>
-        <td>${reg.operador ?? "—"}</td>
-        <td>${reg.codigoSeco ?? "—"}</td>
-        <td>${reg.cantidad ?? "—"}</td>
-        <td>${reg.rack ?? "—"}</td>
-        <td>${reg.posicion ?? "—"}</td>
-        <td>${reg.registradoPorNombre ?? "—"}</td>
-        <td><button class="primary">Validar</button></td>
-      `;
-      tr.querySelector("button").addEventListener("click", ()=> openValidar(reg));
-      tb.appendChild(tr);
-    });
-  });
-}
-function updateProdTotal(){
-  const el = $("#prodTotal");
-  if (!el) return;
-  const total = (produccion || []).reduce((sum, r) => {
-    const n = parseFloat(r?.cantidad);
-    return sum + (isNaN(n) ? 0 : n);
-  }, 0);
-  el.textContent = `Total: ${total}`;
-}
-function renderProduccion(){
-  tblProdAll.innerHTML = "";
-  if (!produccion.length){
-    tblProdAll.innerHTML = `<tr><td colspan="8" style="text-align:center;opacity:.7">Sin registros</td></tr>`;
-    updateProdTotal(); return;
-  }
-  const grupos = {};
-  (produccion||[]).forEach(r => {
-    const key = r.codigoSeco || "Sin código";
-    (grupos[key] = grupos[key] || []).push(r);
-  });
-  Object.entries(grupos).forEach(([codigo, regs]) => {
-    const sep = document.createElement("tr");
-    sep.classList.add("tr-separator");
-    sep.innerHTML = `<td colspan="8">Código de seco: ${codigo}</td>`;
-    tblProdAll.appendChild(sep);
-    regs.forEach(reg => {
-      const tr = document.createElement("tr");
-      tr.classList.add("clickable");
-      tr.innerHTML = `
-        <td>${fmtDT(reg.creadoEn)}</td>
-        <td>${reg.linea}</td>
-        <td>${reg.operador ?? "—"}</td>
-        <td>${reg.codigoSeco ?? "—"}</td>
-        <td>${reg.cantidad ?? "—"}</td>
-        <td>${reg.rack ?? "—"}</td>
-        <td>${reg.posicion ?? "—"}</td>
-        <td>${reg.validadoPorNombre ?? "—"}</td>
-      `;
-      tr.addEventListener("click", ()=> openInfoRegistro(reg));
-      tblProdAll.appendChild(tr);
-    });
-  });
-  updateProdTotal();
-}
-
-/* ===== Enriquecedor (Historial) ===== */
-function enrichSalida(rec){
-  if (!rec) return rec;
-  const rid = rec.refId || rec.id;
-  const prodArr = loadJSON(LS_KEYS.PRODUCCION, []);
-  const retHist = loadJSON(LS_KEYS.RETIRAR_HIST, []);
-  const pending = loadJSON(LS_KEYS.CONTROLISTAS, []);
-  const source =
-    (prodArr.find(x => x.id === rid)) ||
-    (retHist.find(x => x.id === rid || x.refId === rid)) ||
-    (pending.find(x => x.id === rid));
-  if (!source) return rec;
-  return {
-    ...source,
-    ...rec,
-    operador: rec.operador ?? source.operador,
-    codigoSeco: rec.codigoSeco ?? source.codigoSeco,
-    cantidad: rec.cantidad ?? source.cantidad,
-    creadoEn: rec.creadoEn ?? source.creadoEn,
-    registradoPorNombre: rec.registradoPorNombre ?? source.registradoPorNombre,
-    posicion: rec.posicion ?? source.posicion,
-    rack: rec.rack ?? source.rack,
-    linea: rec.linea ?? source.linea
+  const tick=()=>{
+    const now=Date.now(); const total=msDur; const elapsed=Math.max(0, now - from.getTime());
+    const remain=Math.max(0, end - now);
+    const pct = Math.min(100, Math.max(0, (elapsed/total)*100));
+    bar.style.width = `${pct}%`;
+    lbl.textContent = hms(remain);
+    if(remain<=0){ p.classList.add("completed"); lbl.textContent="Completado"; return true; }
+    return false;
   };
+  tick();
+  const id=setInterval(()=>{ if(tick()) clearInterval(id); },1000);
+  timers.push(id);
+  return wrap;
 }
+function rCon(){
+  clearTimers(); TC.innerHTML="";
+  const a=J(K.CON,[]);
+  if(!a.length){TC.innerHTML=`<tr><td colspan="8" style="text-align:center;opacity:.7">Sin registros</td></tr>`; return;}
+  a.forEach(r=>{
+    const tr=document.createElement("tr");
+    const fromISO=r.carga?.from||r.arranque?.at||now(); const msDur=r.carga?.ms??24*3600*1000;
+    const td=(v)=>{const x=document.createElement("td"); x.textContent=v??"—"; return x};
+    const tdRest=document.createElement("td"); tdRest.appendChild(makeRestanteCell(fromISO, msDur));
+    const btn=document.createElement("button"); btn.className="primary"; btn.textContent="Enviar";
+    btn.onclick=()=>{const end=new Date(fromISO).getTime()+msDur; if(Date.now()<end && !confirm("Aún no se completa el tiempo. ¿Continuar?")) return;
+      let mv={...r,completado:{at:now()}}, nx=J(K.PROD,[]); nx.push(mv); S(K.PROD,nx); S(K.CON,(J(K.CON,[])||[]).filter(x=>(x.id||x._id)!==(r.id||r._id))); render();};
+    const tdAct=document.createElement("td"); tdAct.appendChild(btn);
 
-/* ===== HISTORIAL (salidas) ===== */
-function renderHistorialSalidas(){
-  if (!tblHistAll) return;
-  tblHistAll.innerHTML = "";
-
-  const all = loadJSON(LS_KEYS.CONTROLISTAS, []);
-  let salidas = (all || []).filter(it => it && it.tipo === "salida").map(enrichSalida);
-
-  const mode = histRange?.value || "all";
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  if (mode === "today"){
-    salidas = salidas.filter(s => {
-      const t = new Date(s.salida?.at || s.creadoEn || 0).getTime();
-      return t >= startOfToday;
-    });
-  } else if (mode === "7" || mode === "30"){
-    const days = parseInt(mode,10);
-    const cutoff = now.getTime() - days*24*60*60*1000;
-    salidas = salidas.filter(s => new Date(s.salida?.at || s.creadoEn || 0).getTime() >= cutoff);
-  }
-
-  if (!salidas.length){
-    tblHistAll.innerHTML = `<tr><td colspan="8" style="text-align:center;opacity:.7">Sin salidas registradas</td></tr>`;
-    return;
-  }
-
-  salidas.sort((a,b)=>{
-    const ta = new Date(a.salida?.at || a.creadoEn || 0).getTime();
-    const tb = new Date(b.salida?.at || b.creadoEn || 0).getTime();
-    return tb - ta;
-  });
-
-  const grupos = {};
-  salidas.forEach(r => {
-    const key = r.codigoSeco || "Sin código";
-    (grupos[key] = grupos[key] || []).push(r);
-  });
-
-  Object.entries(grupos).forEach(([codigo, regs]) => {
-    const sep = document.createElement("tr");
-    sep.classList.add("tr-separator");
-    sep.innerHTML = `<td colspan="8">Código de seco: ${codigo}</td>`;
-    tblHistAll.appendChild(sep);
-
-    regs.forEach(reg => {
-      const salidaFecha = reg.salida?.at || reg.creadoEn;
-      const validadoPor = reg.salida?.byName || reg.validadoPorNombre || "—";
-      const tr = document.createElement("tr");
-      tr.classList.add("clickable");
-      tr.innerHTML = `
-        <td>${fmtDT(salidaFecha)}</td>
-        <td>${reg.linea ?? "—"}</td>
-        <td>${reg.operador ?? "—"}</td>
-        <td>${reg.codigoSeco ?? "—"}</td>
-        <td>${reg.cantidad ?? "—"}</td>
-        <td>${reg.rack ?? "—"}</td>
-        <td>${reg.posicion ?? "—"}</td>
-        <td>${validadoPor}</td>
-      `;
-      tr.addEventListener("click", ()=> openHistInfo(reg));
-      tblHistAll.appendChild(tr);
-    });
+    tr.append(td(r.arranque?.at?dt(r.arranque.at):"—"), td(hms(msDur)), tdRest, td(r.linea), td(r.codigoSeco), td(r.rack), td(r.posicion), tdAct);
+    TC.appendChild(tr);
   });
 }
-histRange?.addEventListener("change", renderHistorialSalidas);
 
-function openHistInfo(reg){
-  const r = enrichSalida(reg);
-  histInfoBody.innerHTML = `
-    <dl>
-      <dt>Código seco</dt><dd>${r.codigoSeco ?? "—"}</dd>
-      <dt>Cantidad</dt><dd>${r.cantidad ?? "—"}</dd>
-      <dt>Línea</dt><dd>${r.linea ?? "—"}</dd>
-      <dt>Posición</dt><dd>${r.posicion ?? "—"}</dd>
-      <dt>Rack</dt><dd>${r.rack ?? "—"}</dd>
+// ===== Producción =====
+function total(){if(!PT)return; PT.textContent=`Total: ${(PR||[]).reduce((s,r)=>s+(isNaN(parseFloat(r?.cantidad))?0:parseFloat(r.cantidad)),0)}`}
+function rProd(){TPA.innerHTML=""; if(!PR.length){TPA.innerHTML=`<tr><td colspan="8" style="text-align:center;opacity:.7">Sin registros</td></tr>`; total(); return}
+let g={}; PR.forEach(r=>{let k=r.codigoSeco||"Sin código"; (g[k]=g[k]||[]).push(r)}); Object.entries(g).forEach(([k,rs])=>{let sep=document.createElement("tr"); sep.classList.add("tr-separator"); sep.innerHTML=`<td colspan="8">Código de seco: ${k}</td>`; TPA.appendChild(sep);
+rs.forEach(r=>{let tr=document.createElement("tr"); tr.classList.add("clickable"); tr.innerHTML=`<td>${dt(r.creadoEn)}</td><td>${r.linea}</td><td>${r.operador??"—"}</td><td>${r.codigoSeco??"—"}</td><td>${r.cantidad??"—"}</td><td>${r.rack??"—"}</td><td>${r.posicion??"—"}</td><td>${r.validadoPorNombre??r.orden?.byName??"—"}</td>`;
+tr.onclick=()=>{IB.innerHTML=`<dl><dt>Línea</dt><dd>${r.linea??"—"}</dd><dt>Operador</dt><dd>${r.operador??"—"}</dd><dt>Código seco</dt><dd>${r.codigoSeco??"—"}</dd><dt>Cantidad</dt><dd>${r.cantidad??"—"}</dd><dt>Rack</dt><dd>${r.rack??"—"}</dd><dt>Posición</dt><dd>${r.posicion??"—"}</dd><dt>Registrado por</dt><dd>${r.registradoPorNombre??"—"}</dd><dt>Creado</dt><dd>${dt(r.creadoEn)}</dd>${r.validadoPorNombre?`<dt>Validado por</dt><dd>${r.validadoPorNombre} (${dt(r.validadoEn)})</dd>`:""}${r.arranque?.byName?`<dt>Arranque</dt><dd>${r.arranque.byName} (${dt(r.arranque.at)})</dd>`:""}${r.orden?.byName?`<dt>Orden creada</dt><dd>${r.orden.byName} (${dt(r.orden.at)})</dd>`:""}${r.completado?.at?`<dt>Completado</dt><dd>${dt(r.completado.at)}</dd>`:""}</dl>`; $("#modalInfo").showModal();}; TPA.appendChild(tr)})}); total()}
 
-      <dt>Operador (registro)</dt><dd>${r.operador ?? "—"}</dd>
-      <dt>Registrado por</dt><dd>${r.registradoPorNombre ?? "—"}</dd>
-      <dt>Creado</dt><dd>${fmtDT(r.creadoEn)}</dd>
+// ===== Catálogos =====
+function badge(st){return st==="en_uso"?{c:"state-busy",t:"En uso"}:st==="mantenimiento"?{c:"state-warn",t:"Mantenimiento"}:{c:"state-ok",t:"Disponible"}}
+function posSt(k){return PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible")}
+function rackSt(k){return RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible")}
+function tile(k,st){let b=badge(st); return `<div class="tile-title">${k}</div><div class="tile-state ${b.c}">${b.t}</div>`}
+function rPos(q=""){GP.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=450;i++){let k="P"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let li=document.createElement("li"); li.innerHTML=tile(k,posSt(k)); GP.appendChild(li)}}
+function rRack(q=""){GR.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=435;i++){let k="Rack"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let li=document.createElement("li"); li.innerHTML=tile(k,rackSt(k)); GR.appendChild(li)}}
+function rCatalogo(){rPos(PSR?.value); rRack(RSR?.value)}; PSR?.addEventListener("input",()=>rPos(PSR.value)); RSR?.addEventListener("input",()=>rRack(RSR.value));
 
-      <dt>Validado por</dt><dd>${r.validadoPorNombre ?? "—"}</dd>
-      <dt>Validado en</dt><dd>${fmtDT(r.validadoEn)}</dd>
+// ===== Historial + CSV =====
+function enrich(x){if(!x)return x; let id=x.refId||x.id, src=(PR.find(a=>a.id===id))||(J(K.RETH,[]).find(a=>a.id===id||a.refId===id))||(P.find(a=>a.id===id))||(O.find(a=>a.id===id))||(A.find(a=>a.id===id))||(C.find(a=>a.id===id)); return src?{...src,...x}:x}
+function shift(d){let m=d.getHours()*60+d.getMinutes(); return (m>=390&&m<870)?"Día":(m>=870&&m<1350)?"Tarde":"Noche"}
+function filt(){let s=(J(K.PEND,[])||[]).filter(x=>x&&x.tipo==="salida").map(enrich), m=HR?.value||"all", sh=SR?.value||"all", n=new Date(), t0=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();
+if(m==="today") s=s.filter(x=>new Date(x.salida?.at||x.creadoEn||0).getTime()>=t0); else if(m==="7"||"30"){let d=parseInt(m,10); if(d){let cut=n.getTime()-d*864e5; s=s.filter(x=>new Date(x.salida?.at||x.creadoEn||0).getTime()>=cut)}}
+s.sort((a,b)=>new Date(b.salida?.at||b.creadoEn||0)-new Date(a.salida?.at||a.creadoEn||0));
+if(sh!=="all") s=s.filter(r=>({day:"Día",evening:"Tarde",night:"Noche"}[sh])===shift(new Date(r.salida?.at||r.creadoEn||0)));
+return s}
+function rHist(){TH.innerHTML=""; let rows=filt(); if(!rows.length){TH.innerHTML=`<tr><td colspan="9" style="text-align:center;opacity:.7">Sin salidas registradas</td></tr>`;return}
+let g={}; rows.forEach(r=>{let d=new Date(r.salida?.at||r.creadoEn||0), y=d.toISOString().slice(0,10), t=shift(d), k=`${y}|${t}`; (g[k]=g[k]||[]).push(r)});
+Object.keys(g).sort((a,b)=>b.localeCompare(a)).forEach(k=>{let [y,t]=k.split("|"), sep=document.createElement("tr"); sep.classList.add("tr-separator"); sep.innerHTML=`<td colspan="9">${y} — Turno: ${t}</td>`; TH.appendChild(sep);
+g[k].forEach(r=>{let tr=document.createElement("tr"); tr.classList.add("clickable"); tr.innerHTML=`<td>${dt(r.salida?.at||r.creadoEn)}</td><td>${t}</td><td>${r.linea??"—"}</td><td>${r.operador??"—"}</td><td>${r.codigoSeco??"—"}</td><td>${r.cantidad??"—"}</td><td>${r.rack??"—"}</td><td>${r.posicion??"—"}</td><td>${r.salida?.byName||r.validadoPorNombre||"—"}</td>`;
+tr.onclick=()=>{const x=enrich(r); HIB.innerHTML=`<dl>
+<dt>Código seco</dt><dd>${x.codigoSeco??"—"}</dd><dt>Cantidad</dt><dd>${x.cantidad??"—"}</dd><dt>Línea</dt><dd>${x.linea??"—"}</dd>
+<dt>Posición</dt><dd>${x.posicion??"—"}</dd><dt>Rack</dt><dd>${x.rack??"—"}</dd><dt>Operador</dt><dd>${x.operador??"—"}</dd>
+<dt>Registrado por</dt><dd>${x.registradoPorNombre??"—"}</dd><dt>Creado</dt><dd>${dt(x.creadoEn)}</dd>
+<dt>Validado por</dt><dd>${x.validadoPorNombre??"—"}</dd><dt>Validado en</dt><dd>${dt(x.validadoEn)}</dd>
+<dt>Arranque — Controlista</dt><dd>${x.arranque?.byName??"—"}</dd><dt>Arranque — Fecha</dt><dd>${dt(x.arranque?.at)}</dd>
+<dt>Orden creada — Controlista</dt><dd>${x.orden?.byName??"—"}</dd><dt>Orden creada — Fecha</dt><dd>${dt(x.orden?.at)}</dd>
+<dt>Completado (carga)</dt><dd>${dt(x.completado?.at)}</dd>
+<dt>Entrada — Patinero</dt><dd>${x.entrada?.byName??"—"}</dd><dt>Entrada — Fecha</dt><dd>${dt(x.entrada?.at)}</dd>
+<dt>Entrada — Línea conf.</dt><dd>${x.entrada?.confirmLinea??"—"}</dd><dt>Entrada — Rack conf.</dt><dd>${x.entrada?.confirmRack??"—"}</dd>
+<dt>Salida — Patinero</dt><dd>${x.salida?.byName??"—"}</dd><dt>Salida — Fecha</dt><dd>${dt(x.salida?.at)}</dd>
+</dl>`; $("#modalHistInfo").showModal();}; TH.appendChild(tr)})})}
+HR?.addEventListener("change",rHist); SR?.addEventListener("change",rHist);
+CSV?.addEventListener("click",()=>{let rows=filt(); if(!rows.length) return alert("No hay datos para exportar con los filtros actuales."); let H=["Fecha salida","Turno","Línea","Operador","Código seco","Cantidad","Rack","Posición","Validado/Salida por","Arranque","Orden creada","Completado"], out=[H.join(",")];
+rows.forEach(r=>{let d=new Date(r.salida?.at||r.creadoEn||0), t=shift(d), line=[dt(r.salida?.at||r.creadoEn||""),t,r.linea??"",r.operador??"",r.codigoSeco??"",r.cantidad??"",r.rack??"",r.posicion??"", (r.salida?.byName||r.validadoPorNombre||""), dt(r.arranque?.at||""),dt(r.orden?.at||""),dt(r.completado?.at||"")].map(v=>`"${String(v).replaceAll('"','""')}"`).join(","); out.push(line)});
+let blob=new Blob([out.join("\n")],{type:"text/csv;charset=utf-8"}), url=URL.createObjectURL(blob), a=document.createElement("a"); a.href=url; a.download=`historial_${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)});
 
-      <dt>Entrada — Patinero</dt><dd>${r.entrada?.byName ?? "—"}</dd>
-      <dt>Entrada — Fecha</dt><dd>${fmtDT(r.entrada?.at)}</dd>
-      <dt>Entrada — Línea conf.</dt><dd>${r.entrada?.confirmLinea ?? "—"}</dd>
-      <dt>Entrada — Rack conf.</dt><dd>${r.entrada?.confirmRack ?? "—"}</dd>
-
-      <dt>Salida — Patinero</dt><dd>${r.salida?.byName ?? "—"}</dd>
-      <dt>Salida — Fecha</dt><dd>${fmtDT(r.salida?.at)}</dd>
-    </dl>
-  `;
-  modalHistInfo.showModal();
-}
-
-/* ==== POS/RACK estado con indicador ==== */
-function estadoToBadge(estado){
-  if (estado === "en_uso") return { cls: "state-busy", text: "En uso" };
-  if (estado === "mantenimiento") return { cls: "state-warn", text: "Mantenimiento" };
-  return { cls: "state-ok", text: "Disponible" };
-}
-function tilePosHTML(label, estado){
-  const { cls, text } = estadoToBadge(estado);
-  return `
-    <div class="tile-title">${label}</div>
-    <div class="tile-state ${cls}">${text}</div>
-  `;
-}
-function obtenerEstadoPos(key){
-  const st = posStatus?.[key]?.estado;
-  if (st) return st;
-  return enUso.posiciones?.[key] ? "en_uso" : "disponible";
-}
-function renderPosCatalogo(filter=""){
-  if (!gridPos) return;
-  gridPos.innerHTML = "";
-  const f = (filter||"").toLowerCase().trim();
-  for (let i=1;i<=450;i++){
-    const key = "P"+pad3(i);
-    if (f && !key.toLowerCase().includes(f)) continue;
-    const estado = obtenerEstadoPos(key);
-    const li = document.createElement("li");
-    li.innerHTML = tilePosHTML(key, estado);
-    li.addEventListener("click", ()=> openPosEditor(key));
-    gridPos.appendChild(li);
-  }
-}
-function tileRackHTML(label, estado){
-  const { cls, text } = estadoToBadge(estado);
-  return `
-    <div class="tile-title">${label}</div>
-    <div class="tile-state ${cls}">${text}</div>
-  `;
-}
-function obtenerEstadoRack(key){
-  const st = rackStatus?.[key]?.estado;
-  if (st) return st;
-  return enUso.racks?.[key] ? "en_uso" : "disponible";
-}
-function renderRackCatalogo(filter=""){
-  if (!gridRack) return;
-  gridRack.innerHTML = "";
-  const f = (filter||"").toLowerCase().trim();
-  for (let i=1;i<=435;i++){
-    const key = "Rack"+pad3(i);
-    if (f && !key.toLowerCase().includes(f)) continue;
-    const estado = obtenerEstadoRack(key);
-    const li = document.createElement("li");
-    li.innerHTML = tileRackHTML(key, estado);
-    li.addEventListener("click", ()=> openRackEditor(key));
-    gridRack.appendChild(li);
-  }
-}
-function renderCatalogos(){
-  renderPosCatalogo(posSearch?.value);
-  renderRackCatalogo(rackSearch?.value);
-}
-posSearch?.addEventListener("input", ()=> renderPosCatalogo(posSearch.value));
-rackSearch?.addEventListener("input", ()=> renderRackCatalogo(rackSearch.value));
-
-/* ====== Comentarios ====== */
-function renderComentarios(){
-  ulComentarios.innerHTML = "";
-  ulComentariosLeidos.innerHTML = "";
-
-  const comentarios = loadJSON(LS_KEYS.COMMENTS, []);
-  const comentariosLeidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
-
-  if (!comentarios.length){
-    ulComentarios.innerHTML = `<li style="opacity:.7">Sin comentarios pendientes</li>`;
-  } else {
-    comentarios.slice().reverse().forEach(c => {
-      const li = document.createElement("li");
-      li.innerHTML = `
-        <div class="row">
-          <strong>${c.by || "Patinero"}</strong>   <!-- 👈 siempre se usa el 'by' original -->
-          <small>${fmtDT(c.at)}</small>
-        </div>
-        <div>${c.text}</div>
-        <div class="actions end"><button class="ghost">Leído</button></div>
-      `;
-      li.querySelector("button").addEventListener("click", ()=>{
-        // mover a Leídos
-        const rest = loadJSON(LS_KEYS.COMMENTS, []).filter(x => !(x.at === c.at && x.text === c.text));
-        const done = loadJSON(LS_KEYS.COMMENTS_READ, []); 
-        done.push(c); // 👈 mantiene el mismo autor (patinero)
-        saveJSON(LS_KEYS.COMMENTS, rest);
-        saveJSON(LS_KEYS.COMMENTS_READ, done);
-        renderComentarios();
-        updateCommentsBadge();
-        if (getPendingCommentsCount()===0) stopTitleBlink();
-      });
-      ulComentarios.appendChild(li);
-    });
-  }
-}
-
-/* ====== Validar / Info Producción ====== */
-let currentPendiente = null;
-function openValidar(reg){
-  currentPendiente = reg;
-  valResumen.textContent = `Línea ${reg.linea} | Posición ${reg.posicion} | Rack ${reg.rack}`;
-  valDetalle.innerHTML = `
-    <dl>
-      <dt>Operador</dt><dd>${reg.operador ?? "—"}</dd>
-      <dt>Código de seco (esperado)</dt><dd>${reg.codigoSeco ?? "—"}</dd>
-      <dt>Cantidad</dt><dd>${reg.cantidad ?? "—"}</dd>
-      <dt>Registrado por</dt><dd>${reg.registradoPorNombre ?? "—"}</dd>
-      <dt>Creado en</dt><dd>${fmtDT(reg.creadoEn)}</dd>
-    </dl>
-  `;
-  valChips.innerHTML = `
-    <span class="tile-state ${enUso.posiciones?.[reg.posicion]?'state-busy':'state-ok'}">
-      Posición ${enUso.posiciones?.[reg.posicion]?'Ocupada':'Disponible'}
-    </span>
-    <span class="tile-state ${enUso.racks?.[reg.rack]?'state-busy':'state-ok'}">
-      ${enUso.racks?.[reg.rack]?'Rack en uso':'Rack listo'}
-    </span>
-  `;
-  valCodigo.value = "";
-  modalValidar.showModal();
-}
-btnScanVal.addEventListener("click", ()=>{
-  const v = prompt("Simulación de escaneo QR\nPega/teclea el código de seco:");
-  if (v) valCodigo.value = v;
-});
-formValidar.addEventListener("click", (e)=>{
-  const btn = e.target;
-  if (!(btn instanceof HTMLButtonElement)) return;
-  if (btn.value === "save" && currentPendiente){
-    const val = (valCodigo.value || "").trim();
-    if (!val){ alert("Captura o escanea el código de seco."); return; }
-    if (val !== currentPendiente.codigoSeco){
-      alert("El código capturado no coincide con el código de seco del registro.");
-      return;
-    }
-    const u = currentUser();
-    const validado = {
-      ...currentPendiente,
-      validadoEn: new Date().toISOString(),
-      validadoPorId: u?.id || null,
-      validadoPorNombre: u?.name || "Controlista"
-    };
-    produccion.push(validado);
-    saveJSON(LS_KEYS.PRODUCCION, produccion);
-    pendientes = pendientes.filter(r => r.id !== currentPendiente.id);
-    saveJSON(LS_KEYS.CONTROLISTAS, pendientes);
-    modalValidar.close();
-    currentPendiente = null;
-    renderAll();
-  }
-  if (btn.value === "cancel"){ modalValidar.close(); currentPendiente = null; }
-});
-
-let currentInfoReg = null;
-function openInfoRegistro(reg){
-  currentInfoReg = reg;
-  infoBody.innerHTML = `
-    <dl>
-      <dt>Línea (actual)</dt><dd>${reg.linea ?? "—"}</dd>
-      <dt>Operador</dt><dd>${reg.operador ?? "—"}</dd>
-      <dt>Código seco</dt><dd>${reg.codigoSeco ?? "—"}</dd>
-      <dt>Cantidad</dt><dd>${reg.cantidad ?? "—"}</dd>
-      <dt>Rack</dt><dd>${reg.rack ?? "—"}</dd>
-      <dt>Posición</dt><dd>${reg.posicion ?? "—"}</dd>
-      <dt>Registrado por</dt><dd>${reg.registradoPorNombre ?? "—"}</dd>
-      <dt>Creado</dt><dd>${fmtDT(reg.creadoEn ?? new Date().toISOString())}</dd>
-      ${reg.validadoPorNombre ? `<dt>Validado por</dt><dd>${reg.validadoPorNombre} (${fmtDT(reg.validadoEn)})</dd>` : ""}
-    </dl>
-  `;
-  modalInfo.showModal();
-}
-infoActions.addEventListener("click", e=>{
-  const btn = e.target.closest("button[data-linea]");
-  if (!btn || !currentInfoReg) return;
-
-  const lineaSel = parseInt(btn.dataset.linea, 10);
-  const item = {
-    id: currentInfoReg.id || crypto.randomUUID(),
-    posicion: currentInfoReg.posicion,
-    rack: currentInfoReg.rack,
-    linea: lineaSel,
-    refId: currentInfoReg.id,
-    operador: currentInfoReg.operador,
-    empleado: currentInfoReg.registradoPorId,
-    codigoSeco: currentInfoReg.codigoSeco,
-    cantidad: currentInfoReg.cantidad,
-    creadoEn: currentInfoReg.creadoEn,
-    registradoPorNombre: currentInfoReg.registradoPorNombre
-  };
-
-  const ret = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[],4:[]});
-  (ret[lineaSel] = ret[lineaSel] || []).push(item);
-  saveJSON(LS_KEYS.RETIRAR, ret);
-
-  const hist = loadJSON(LS_KEYS.RETIRAR_HIST, []);
-  hist.push(item); saveJSON(LS_KEYS.RETIRAR_HIST, hist);
-
-  produccion = produccion.filter(x => x.id !== currentInfoReg.id);
-  saveJSON(LS_KEYS.PRODUCCION, produccion);
-
-  alert(`Enviado a Retirar (Patineros) en Línea ${lineaSel}: ${item.posicion} • ${item.rack}`);
-  modalInfo.close();
-  currentInfoReg = null;
-  renderAll();
-});
-
-/* ====== Indicadores pill ====== */
-function actualizarIndicadorPos(estado){
-  const { cls, text } = estadoToBadge(estado);
-  posEstadoIndicador.classList.remove("state-ok","state-busy","state-warn");
-  posEstadoIndicador.classList.add(cls);
-  posEstadoIndicador.textContent = text;
-}
-function actualizarIndicadorRack(estado){
-  const { cls, text } = estadoToBadge(estado);
-  rkEstadoIndicador.classList.remove("state-ok","state-busy","state-warn");
-  rkEstadoIndicador.classList.add(cls);
-  rkEstadoIndicador.textContent = text;
-}
-
-/* ====== Editores: Posiciones ====== */
-let currentPosKey = null;
-function openPosEditor(key){
-  currentPosKey = key;
-  posTitle.textContent = `Editar posición ${key}`;
-
-  const st = posStatus[key] || {};
-  const estadoActual = st.estado || (enUso.posiciones?.[key] ? "en_uso" : "disponible");
-  posEstado.value = estadoActual;
-  actualizarIndicadorPos(estadoActual);
-
-  posObs.value = st.obs || "";
-  posActuador.checked = !!st.actuador;
-  posTarjeta.checked  = !!st.tarjeta;
-  posAbraz.checked    = !!st.abrazaderas;
-  posCable.checked    = !!st.cable_bajada;
-
-  modalPos.showModal();
-}
-posEstado?.addEventListener("change", ()=> actualizarIndicadorPos(posEstado.value));
-formPos.addEventListener("click", (e)=>{
-  const btn = e.target;
-  if (!(btn instanceof HTMLButtonElement)) return;
-
-  if (btn.value === "save" && currentPosKey){
-    const estado = posEstado.value;
-
-    enUso.posiciones = enUso.posiciones || {};
-    if (estado === "disponible") delete enUso.posiciones[currentPosKey];
-    else enUso.posiciones[currentPosKey] = true;
-    saveJSON(LS_KEYS.EN_USO, enUso);
-
-    posStatus[currentPosKey] = {
-      ...(posStatus[currentPosKey] || {}),
-      estado,
-      actuador: !!posActuador.checked,
-      tarjeta: !!posTarjeta.checked,
-      abrazaderas: !!posAbraz.checked,
-      cable_bajada: !!posCable.checked,
-      obs: posObs.value.trim() || ""
-    };
-    saveJSON(LS_KEYS.STATUS_POS_DET, posStatus);
-
-    modalPos.close();
-    renderCatalogos();
-  }
-  if (btn.value === "cancel"){ modalPos.close(); }
-});
-
-/* ====== Editores: Racks ====== */
-let currentRackKey = null;
-function openRackEditor(key){
-  currentRackKey = key;
-  rackTitle.textContent = `Editar ${key}`;
-
-  const st = rackStatus[key] || {};
-  const estadoActual = st.estado || (enUso.racks?.[key] ? "en_uso" : "disponible");
-  rkEstado.value = estadoActual;
-  actualizarIndicadorRack(estadoActual);
-
-  rkObs.value = st.obs || "";
-  rkSoporte.checked = !!st.soporte_dren;
-  rkPorta.checked   = !!st.porta_manguera;
-  rkTina.checked    = !!st.tina;
-
-  modalRack.showModal();
-}
-rkEstado?.addEventListener("change", ()=> actualizarIndicadorRack(rkEstado.value));
-formRack.addEventListener("click", (e)=>{
-  const btn = e.target;
-  if (!(btn instanceof HTMLButtonElement)) return;
-
-  if (btn.value === "save" && currentRackKey){
-    const estado = rkEstado.value;
-
-    enUso.racks = enUso.racks || {};
-    if (estado === "disponible") delete enUso.racks[currentRackKey];
-    else enUso.racks[currentRackKey] = true;
-    saveJSON(LS_KEYS.EN_USO, enUso);
-
-    rackStatus[currentRackKey] = {
-      ...(rackStatus[currentRackKey] || {}),
-      estado,
-      soporte_dren: !!rkSoporte.checked,
-      porta_manguera: !!rkPorta.checked,
-      tina: !!rkTina.checked,
-      obs: rkObs.value.trim() || ""
-    };
-    saveJSON(LS_KEYS.STATUS_RACKS_DET, rackStatus);
-
-    modalRack.close();
-    renderCatalogos();
-  }
-  if (btn.value === "cancel"){ modalRack.close(); }
-});
-
-/* ====== In-app alerts de Comentarios (badge, toast, título blinking) ====== */
-const COMMENTS_CH = new BroadcastChannel('patinero-comments');
-
-function getPendingCommentsCount() {
-  const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
-  return arr.length;
-}
-function updateCommentsBadge() {
-  const count = getPendingCommentsCount();
-  if (!linkComentarios) return;
-  if (count > 0) {
-    linkComentarios.classList.add('has-unread');
-    linkComentarios.setAttribute('data-unread', count);
-  } else {
-    linkComentarios.classList.remove('has-unread');
-    linkComentarios.removeAttribute('data-unread');
-  }
-}
-function showCommentToast() {
-  if (document.querySelector('.comment-toast')) return;
-  const toast = document.createElement('div');
-  toast.className = 'comment-toast';
-  toast.innerHTML = `
-    <div class="title">Nuevo comentario</div>
-    <div class="body">Tienes un comentario pendiente del patinero.</div>
-    <div class="actions">
-      <button class="primary" id="toastVer">Ver</button>
-      <button class="secondary" id="toastCerrar">Cerrar</button>
-    </div>
-  `;
-  document.body.appendChild(toast);
-  $("#toastCerrar")?.addEventListener('click', ()=> toast.remove());
-  $("#toastVer")?.addEventListener('click', ()=> {
-    toast.remove();
-    location.hash = '#comentarios';
-    setTimeout(()=> {
-      try { renderComentarios?.(); } catch {}
-      $("#ulComentarios")?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
-  });
-}
-let titleBlinkTimer = null;
-const baseTitle = document.title || 'Controlistas';
-function startTitleBlink() {
-  if (titleBlinkTimer) return;
-  let on = false;
-  titleBlinkTimer = setInterval(()=> {
-    document.title = on ? `🟢 Nuevo comentario` : baseTitle;
-    on = !on;
-  }, 1200);
-}
-function stopTitleBlink() {
-  if (titleBlinkTimer) clearInterval(titleBlinkTimer);
-  titleBlinkTimer = null;
-  document.title = baseTitle;
-}
-window.addEventListener('hashchange', ()=> {
-  if (location.hash === '#comentarios') stopTitleBlink();
-});
-function beep() {
-  const a = $("#ping");
-  if (!a) return;
-  try { a.currentTime = 0; a.play(); } catch {}
-}
-function highlightCommentsPanel() {
-  updateCommentsBadge();
-  if (linkComentarios) {
-    linkComentarios.classList.add('pulse-highlight');
-    setTimeout(()=> linkComentarios.classList.remove('pulse-highlight'), 1800);
-  }
-  if (location.hash !== '#comentarios') {
-    showCommentToast();
-  } else {
-    try { renderComentarios?.(); } catch {}
-    $("#comentarios")?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-}
-function onIncomingComment() {
-  highlightCommentsPanel();
-  startTitleBlink();
-  beep();
-  try { renderComentarios?.(); } catch {}
-}
-COMMENTS_CH.onmessage = (ev) => {
-  const msg = ev?.data || {};
-  if (msg.type === 'nuevo-comentario' && msg.payload) {
-    const arr = JSON.parse(localStorage.getItem("comentarios") || "[]");
-    const c = msg.payload;
-    const exists = arr.some(x => x.at === c.at && x.text === c.text);
-    if (!exists) {
-      arr.push(c);
-      localStorage.setItem("comentarios", JSON.stringify(arr));
-    }
-    onIncomingComment();
-  }
-};
-window.addEventListener('storage', (e) => {
-  if (e.key === 'comentarios') {
-    onIncomingComment();
-  }
-});
-updateCommentsBadge();
-
-// Hook para mantener badge actualizado tras renderComentarios
-const _origRenderComentarios = typeof renderComentarios === 'function' ? renderComentarios : null;
-if (_origRenderComentarios) {
-  window.renderComentarios = function() {
-    _origRenderComentarios();
-    updateCommentsBadge();
-    if (location.hash === '#comentarios') stopTitleBlink();
-  };
-}
-
-/* ====== NUEVO: Sincronización instantánea por cambios en localStorage (desde Patineros) ====== */
-window.addEventListener("storage", (e) => {
-  const keysToWatch = [
-    LS_KEYS.EN_USO,
-    LS_KEYS.STATUS_POS_DET,
-    LS_KEYS.STATUS_RACKS_DET,
-    LS_KEYS.RETIRAR,
-    LS_KEYS.RETIRAR_HIST,
-    LS_KEYS.PRODUCCION,
-    LS_KEYS.CONTROLISTAS,
-    LS_KEYS.COMMENTS,
-    LS_KEYS.COMMENTS_READ
-  ];
-  if (keysToWatch.includes(e.key)) {
-    renderAll();
-  }
-
-  // Resalta tab de comentarios si llega un "ping" simple
-  if (e.key === "comment_ping") {
-    const link = document.querySelector('#mainNav a[href="#comentarios"]') || linkComentarios;
-    if (link) {
-      link.classList.add("has-unread");
-      setTimeout(() => link.classList.remove("has-unread"), 6000);
-    }
-  }
-});
-
-// (Opcional) Solicitar permiso para notificaciones nativas una sola vez
-if ("Notification" in window && Notification.permission === "default") {
-  Notification.requestPermission().catch(()=>{});
-}
-
-/* ====== Inicial ====== */
-function renderAll(){
-  pendientes = loadJSON(LS_KEYS.CONTROLISTAS, []);
-  produccion = loadJSON(LS_KEYS.PRODUCCION, []);
-  retirar    = loadJSON(LS_KEYS.RETIRAR, {1:[],2:[],3:[],4:[]});
-  retirarHist= loadJSON(LS_KEYS.RETIRAR_HIST, []);
-  posStatus  = loadJSON(LS_KEYS.STATUS_POS_DET, {});
-  rackStatus = loadJSON(LS_KEYS.STATUS_RACKS_DET, {});
-  comentarios= loadJSON(LS_KEYS.COMMENTS, []);
-  comentariosLeidos = loadJSON(LS_KEYS.COMMENTS_READ, []);
-  enUso      = loadJSON(LS_KEYS.EN_USO, {posiciones:{}, racks:{}});
-
-  renderPendientes();
-  renderProduccion();
-  renderHistorialSalidas();
-  renderCatalogos();
-  renderComentarios();
-  updateCommentsBadge();
-}
-renderAll();
-setInterval(renderAll, 1000);
+// ===== Render =====
+function rCatalogo(){rPos(PSR?.value); rRack(RSR?.value)}
+function render(){P=J(K.PEND,[]); A=J(K.ARR,[]); O=J(K.ORD,[]); C=J(K.CON,[]); PR=J(K.PROD,[]); PS=J(K.PSTAT,{}); RS=J(K.RSTAT,{}); EU=J(K.USE,{posiciones:{},racks:{}});
+rPend(); rArr(); rOrd(); rCon(); rProd(); rHist(); rCatalogo(); markActive();}
+window.addEventListener("storage",e=>{if([K.USE,K.PSTAT,K.RSTAT,K.RET,K.RETH,K.PROD,K.PEND,K.ARR,K.ORD,K.CON].includes(e.key)) render()});
+PSR?.addEventListener("input",()=>rPos(PSR.value)); RSR?.addEventListener("input",()=>rRack(RSR.value));
+function rPos(q=""){GP.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=450;i++){let k="P"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let li=document.createElement("li"); li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${EU.posiciones?.[k]?'state-busy':'state-ok'}">${EU.posiciones?.[k]?'En uso':'Disponible'}</div>`; GP.appendChild(li)}}
+function rRack(q=""){GR.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=435;i++){let k="Rack"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let li=document.createElement("li"); li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${EU.racks?.[k]?'state-busy':'state-ok'}">${EU.racks?.[k]?'En uso':'Disponible'}</div>`; GR.appendChild(li)}}
+render();
