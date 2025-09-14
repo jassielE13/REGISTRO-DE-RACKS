@@ -1,4 +1,4 @@
-// ========== Controlistas.js (con progreso animado en “Restante”) ==========
+// ========== Controlistas.js (con progreso animado y topbar fija) ==========
 const K={PEND:"controlistas_pendientes",ARR:"controlistas_arranque",ORD:"controlistas_ordenes",CON:"controlistas_confirm",PROD:"controlistas_produccion",RET:"retirar_listas",RETH:"retirar_historial_all",PSTAT:"status_posiciones_detalle",RSTAT:"status_racks_detalle",COM:"comentarios",COMR:"comentarios_leidos",USE:"en_uso"};
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s)), J=(k,f)=>{try{let v=localStorage.getItem(k);return v?JSON.parse(v):f}catch{return f}}, S=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const pad=n=>String(n).padStart(3,"0"), now=()=>new Date().toISOString(), dt=s=>{if(!s)return"—";let d=new Date(s);return isNaN(d)?"—":d.toLocaleString()}, cur=()=>{try{return JSON.parse(localStorage.getItem("CURRENT_USER")||"null")}catch{return null}}, isoLocal=t=>{if(!t)return now();let d=new Date(t);return isNaN(d)?now():d.toISOString()}, hms=ms=>{if(ms<0)ms=0;let s=Math.floor(ms/1e3),h=String(Math.floor(s/3600)).padStart(2,"0"),m=String(Math.floor(s%3600/60)).padStart(2,"0"),se=String(s%60).padStart(2,"0");return`${h}:${m}:${se}`};
@@ -10,8 +10,11 @@ const mT=$("#menuToggle"), sb=$("#sidebar"), bd=$("#backdrop");
 function menu(o){document.body.classList.toggle("menu-open",!!o); sb?.setAttribute("aria-hidden",o?"false":"true"); mT?.setAttribute("aria-expanded",o?"true":"false"); bd.hidden=!o}
 mT?.addEventListener("click",()=>menu(!document.body.classList.contains("menu-open"))); bd?.addEventListener("click",()=>menu(false)); $$(".sidenav a").forEach(a=>a.addEventListener("click",()=>menu(false)));
 
-// Topnav activa
-function markActive(){const h=(location.hash||"").toLowerCase()||"#validar"; $$(".topnav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href").toLowerCase()===h));}
+// Topnav: activa
+function markActive(){
+  const h=(location.hash||"").toLowerCase()||"#validar";
+  $$(".topnav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href").toLowerCase()===h));
+}
 window.addEventListener("hashchange",()=>{ markActive(); if(location.hash==="#confirmacion") rCon(); });
 markActive();
 
@@ -49,7 +52,7 @@ if(b.value==="save"&&curA){let t=ADT.value, h=parseInt(AHR.value,10); if(!t)retu
 let u=cur(), st={...curA,arranque:{at:isoLocal(t),byId:u?.id||null,byName:u?.name||"Controlista"},carga:{ms:h*3600*1000,from:isoLocal(t)}}; let nx=J(K.ORD,[]); nx.push(st); S(K.ORD,nx); S(K.ARR,(J(K.ARR,[])||[]).filter(x=>(x.id||x._id)!==(curA.id||curA._id))); MDA.close(); curA=null; render()}
 if(b.value==="cancel"){MDA.close(); curA=null}});
 
-// ===== Arranque / Órdenes / Confirm =====
+// ===== Arranque / Órdenes =====
 function rArr(){TA.innerHTML=""; let a=J(K.ARR,[]); if(!a.length){TA.innerHTML=`<tr><td colspan="8" style="text-align:center;opacity:.7">Sin registros</td></tr>`;return}
 a.forEach(r=>{let tr=document.createElement("tr"); tr.innerHTML=`<td>${dt(r.creadoEn)}</td><td>${r.linea??"—"}</td><td>${r.operador??"—"}</td><td>${r.codigoSeco??"—"}</td><td>${r.cantidad??"—"}</td><td>${r.rack??"—"}</td><td>${r.posicion??"—"}</td><td><button class="accent">Arrancar</button></td>`;
 tr.querySelector("button").onclick=()=>oArr(r); TA.appendChild(tr)})}
@@ -58,7 +61,7 @@ a.forEach(r=>{let tr=document.createElement("tr"); tr.innerHTML=`<td>${dt(r.arra
 tr.querySelector("button").onclick=()=>{let u=cur(), o={...r,orden:{at:now(),byId:u?.id||null,byName:u?.name||"Controlista"}}; o.carga={ms:o.carga?.ms??24*3600*1000,from:o.carga?.from??(o.arranque?.at||now())};
 let nx=J(K.CON,[]); nx.push(o); S(K.CON,nx); S(K.ORD,(J(K.ORD,[])||[]).filter(x=>(x.id||x._id)!==(r.id||r._id))); render()}; TO.appendChild(tr)})}
 
-// ---- Confirmación con barra animada ----
+// ===== Confirmación con barra animada =====
 let timers=[];
 function clearTimers(){timers.forEach(id=>clearInterval(id)); timers=[]}
 function makeRestanteCell(fromISO, msDur){
@@ -110,12 +113,10 @@ rs.forEach(r=>{let tr=document.createElement("tr"); tr.classList.add("clickable"
 tr.onclick=()=>{IB.innerHTML=`<dl><dt>Línea</dt><dd>${r.linea??"—"}</dd><dt>Operador</dt><dd>${r.operador??"—"}</dd><dt>Código seco</dt><dd>${r.codigoSeco??"—"}</dd><dt>Cantidad</dt><dd>${r.cantidad??"—"}</dd><dt>Rack</dt><dd>${r.rack??"—"}</dd><dt>Posición</dt><dd>${r.posicion??"—"}</dd><dt>Registrado por</dt><dd>${r.registradoPorNombre??"—"}</dd><dt>Creado</dt><dd>${dt(r.creadoEn)}</dd>${r.validadoPorNombre?`<dt>Validado por</dt><dd>${r.validadoPorNombre} (${dt(r.validadoEn)})</dd>`:""}${r.arranque?.byName?`<dt>Arranque</dt><dd>${r.arranque.byName} (${dt(r.arranque.at)})</dd>`:""}${r.orden?.byName?`<dt>Orden creada</dt><dd>${r.orden.byName} (${dt(r.orden.at)})</dd>`:""}${r.completado?.at?`<dt>Completado</dt><dd>${dt(r.completado.at)}</dd>`:""}</dl>`; $("#modalInfo").showModal();}; TPA.appendChild(tr)})}); total()}
 
 // ===== Catálogos =====
-function badge(st){return st==="en_uso"?{c:"state-busy",t:"En uso"}:st==="mantenimiento"?{c:"state-warn",t:"Mantenimiento"}:{c:"state-ok",t:"Disponible"}}
 function posSt(k){return PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible")}
 function rackSt(k){return RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible")}
-function tile(k,st){let b=badge(st); return `<div class="tile-title">${k}</div><div class="tile-state ${b.c}">${b.t}</div>`}
-function rPos(q=""){GP.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=450;i++){let k="P"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let li=document.createElement("li"); li.innerHTML=tile(k,posSt(k)); GP.appendChild(li)}}
-function rRack(q=""){GR.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=435;i++){let k="Rack"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let li=document.createElement("li"); li.innerHTML=tile(k,rackSt(k)); GR.appendChild(li)}}
+function rPos(q=""){GP.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=450;i++){let k="P"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let st=posSt(k), li=document.createElement("li"); li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${st==='en_uso'?'state-busy':st==='mantenimiento'?'state-warn':'state-ok'}">${st==='en_uso'?'En uso':st==='mantenimiento'?'Mantenimiento':'Disponible'}</div>`; GP.appendChild(li)}}
+function rRack(q=""){GR.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=435;i++){let k="Rack"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let st=rackSt(k), li=document.createElement("li"); li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${st==='en_uso'?'state-busy':st==='mantenimiento'?'state-warn':'state-ok'}">${st==='en_uso'?'En uso':st==='mantenimiento'?'Mantenimiento':'Disponible'}</div>`; GR.appendChild(li)}}
 function rCatalogo(){rPos(PSR?.value); rRack(RSR?.value)}; PSR?.addEventListener("input",()=>rPos(PSR.value)); RSR?.addEventListener("input",()=>rRack(RSR.value));
 
 // ===== Historial + CSV =====
@@ -148,11 +149,10 @@ rows.forEach(r=>{let d=new Date(r.salida?.at||r.creadoEn||0), t=shift(d), line=[
 let blob=new Blob([out.join("\n")],{type:"text/csv;charset=utf-8"}), url=URL.createObjectURL(blob), a=document.createElement("a"); a.href=url; a.download=`historial_${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)});
 
 // ===== Render =====
-function rCatalogo(){rPos(PSR?.value); rRack(RSR?.value)}
 function render(){P=J(K.PEND,[]); A=J(K.ARR,[]); O=J(K.ORD,[]); C=J(K.CON,[]); PR=J(K.PROD,[]); PS=J(K.PSTAT,{}); RS=J(K.RSTAT,{}); EU=J(K.USE,{posiciones:{},racks:{}});
 rPend(); rArr(); rOrd(); rCon(); rProd(); rHist(); rCatalogo(); markActive();}
 window.addEventListener("storage",e=>{if([K.USE,K.PSTAT,K.RSTAT,K.RET,K.RETH,K.PROD,K.PEND,K.ARR,K.ORD,K.CON].includes(e.key)) render()});
-PSR?.addEventListener("input",()=>rPos(PSR.value)); RSR?.addEventListener("input",()=>rRack(RSR.value));
-function rPos(q=""){GP.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=450;i++){let k="P"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let li=document.createElement("li"); li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${EU.posiciones?.[k]?'state-busy':'state-ok'}">${EU.posiciones?.[k]?'En uso':'Disponible'}</div>`; GP.appendChild(li)}}
-function rRack(q=""){GR.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=435;i++){let k="Rack"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let li=document.createElement("li"); li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${EU.racks?.[k]?'state-busy':'state-ok'}">${EU.racks?.[k]?'En uso':'Disponible'}</div>`; GR.appendChild(li)}}
+function rCatalogo(){rPos(PSR?.value); rRack(RSR?.value)}; PSR?.addEventListener("input",()=>rPos(PSR.value)); RSR?.addEventListener("input",()=>rRack(RSR.value));
+function rPos(q=""){GP.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=450;i++){let k="P"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let st=PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible"); let li=document.createElement("li"); li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${st==='en_uso'?'state-busy':st==='mantenimiento'?'state-warn':'state-ok'}">${st==='en_uso'?'En uso':st==='mantenimiento'?'Mantenimiento':'Disponible'}</div>`; GP.appendChild(li)}}
+function rRack(q=""){GR.innerHTML=""; q=(q||"").toLowerCase().trim(); for(let i=1;i<=435;i++){let k="Rack"+pad(i); if(q && !k.toLowerCase().includes(q))continue; let st=RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible"); let li=document.createElement("li"); li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${st==='en_uso'?'state-busy':st==='mantenimiento'?'state-warn':'state-ok'}">${st==='en_uso'?'En uso':st==='mantenimiento'?'Mantenimiento':'Disponible'}</div>`; GR.appendChild(li)}}
 render();
