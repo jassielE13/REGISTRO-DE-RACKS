@@ -1,4 +1,4 @@
-/* ===== RESET ===== */
+/* ===== RESET & THEME ===== */
 * {
   box-sizing: border-box
 }
@@ -14,7 +14,6 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, sans-serif
 }
 
-/* ===== THEME ===== */
 :root {
   color-scheme: light dark;
   --c-bg: #0b1220;
@@ -28,7 +27,7 @@ body {
   --c-warn: #fbbf24;
   --shadow: 0 10px 30px rgba(0, 0, 0, .35);
   --radius: 12px;
-  --sidebar-w: 280px;
+  --sidebar-w: 260px;
 }
 
 body {
@@ -36,7 +35,7 @@ body {
   color: var(--c-text)
 }
 
-/* ===== TOPBAR ===== */
+/* ===== TOPBAR (una sola línea, sin scroll) ===== */
 .topbar {
   position: sticky;
   top: 0;
@@ -44,21 +43,21 @@ body {
   display: flex;
   align-items: center;
   gap: .6rem;
-  padding: .6rem .8rem;
+  padding: .45rem .75rem;
   background: var(--c-panel);
   border-bottom: 1px solid var(--c-border);
   box-shadow: var(--shadow)
 }
 
 .hamburger {
-  --bar-h: 3px;
-  --bar-w: 22px;
+  --bar-h: 2px;
+  --bar-w: 20px;
   background: transparent;
   border: 0;
-  padding: .5rem;
+  padding: .4rem;
   border-radius: 10px;
   display: grid;
-  gap: 5px
+  gap: 4px
 }
 
 .hamburger span {
@@ -71,40 +70,29 @@ body {
 
 .topnav {
   display: flex;
-  flex-wrap: wrap;
-  gap: .35rem;
-  margin-left: .25rem
+  gap: .3rem;
+  flex-wrap: nowrap;
+  /* fuerza 1 línea */
+  align-items: center;
+  min-width: 0;
+  /* evita crecimiento */
 }
 
 .topnav a {
-  padding: .45rem .7rem;
-  border-radius: 10px;
+  padding: .32rem .52rem;
+  border-radius: 8px;
   text-decoration: none;
   color: var(--c-text);
   border: 1px solid transparent;
-  font-weight: 700
+  font-weight: 700;
+  font-size: .85rem;
+  white-space: nowrap
 }
 
 .topnav a:hover {
   background: color-mix(in oklab, var(--c-primary) 15%, var(--c-panel));
   color: var(--c-primary);
   border-color: var(--c-border)
-}
-
-.topnav a.has-unread::after {
-  content: attr(data-unread);
-  margin-left: .4rem;
-  display: inline-flex;
-  min-width: 1.15rem;
-  height: 1.15rem;
-  padding: 0 .3rem;
-  align-items: center;
-  justify-content: center;
-  font-size: .7rem;
-  font-weight: 800;
-  border-radius: 999px;
-  background: var(--c-danger);
-  color: #fff
 }
 
 .topnav a.active {
@@ -117,10 +105,39 @@ body {
   margin-left: auto;
   background: #ef4444;
   color: #fff;
-  padding: .5rem .8rem;
-  border-radius: 10px;
+  padding: .35rem .6rem;
+  border-radius: 8px;
   text-decoration: none;
-  font-weight: 800
+  font-weight: 800;
+  font-size: .85rem
+}
+
+/* En pantallas muy pequeñas reducimos tipografía para que quepa */
+@media(max-width:900px) {
+
+  .topnav a,
+  .logout {
+    font-size: .78rem;
+    padding: .28rem .45rem
+  }
+}
+
+@media(max-width:720px) {
+
+  .topnav a,
+  .logout {
+    font-size: .7rem;
+    padding: .25rem .38rem
+  }
+}
+
+@media(max-width:600px) {
+
+  .topnav a,
+  .logout {
+    font-size: .64rem;
+    padding: .22rem .34rem
+  }
 }
 
 /* ===== SIDEBAR ===== */
@@ -545,7 +562,7 @@ button.ghost:hover {
   justify-content: flex-end
 }
 
-/* ===== PROGRESS (Tiempo restante) ===== */
+/* ===== PROGRESS (Tiempo restante con animación) ===== */
 .restante-wrap {
   min-width: 210px
 }
@@ -557,9 +574,7 @@ button.ghost:hover {
   border-radius: 10px;
   border: 1px solid var(--c-border);
   overflow: hidden;
-  /* fondo a rayas ámbar con animación */
-  background:
-    repeating-linear-gradient(135deg, rgba(251, 191, 36, .18) 0 12px, rgba(251, 191, 36, .10) 12px 24px);
+  background: repeating-linear-gradient(135deg, rgba(251, 191, 36, .18) 0 12px, rgba(251, 191, 36, .10) 12px 24px);
   background-size: 24px 24px;
   animation: stripes-move 2.2s linear infinite;
 }
@@ -570,7 +585,6 @@ button.ghost:hover {
   width: 0;
   height: 100%;
   background: linear-gradient(90deg, #f59e0b, #f59e0b);
-  /* ámbar */
   opacity: .6;
   transition: width 1s linear;
 }
@@ -596,18 +610,16 @@ button.ghost:hover {
   text-shadow: 0 1px 2px rgba(0, 0, 0, .6)
 }
 
-/* Animación de rayas (se desplazan en diagonal) */
 @keyframes stripes-move {
   0% {
-    background-position: 0 0;
+    background-position: 0 0
   }
 
   100% {
-    background-position: 48px 48px;
+    background-position: 48px 48px
   }
 }
 
-/* Respeta usuarios con reducción de movimiento */
 @media (prefers-reduced-motion: reduce) {
   .progress {
     animation: none
@@ -633,10 +645,6 @@ button.ghost:hover {
   .table {
     min-width: 640px
   }
-
-  .topnav {
-    gap: .25rem
-  }
 }
 
 @media(max-width:760px) {
@@ -654,10 +662,6 @@ button.ghost:hover {
 
   .grid2 {
     grid-template-columns: 1fr
-  }
-
-  .topnav a {
-    padding: .4rem .55rem
   }
 }
 
