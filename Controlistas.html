@@ -16,24 +16,25 @@
       <span></span><span></span><span></span>
     </button>
 
+    <!-- En una sola línea, sin desplazamiento -->
     <nav class="topnav">
       <a href="#validar">Validación de Módulos</a>
       <a href="#arranque">Arranque de programa</a>
       <a href="#ordenes">Órdenes por crear</a>
       <a href="#confirmacion">Confirmación de fin</a>
       <a href="#produccion">Secuencia de producción</a>
-      <a href="#posiciones">Posiciones</a>
-      <a href="#racks">Racks</a>
       <a href="#comentarios" id="linkComentarios">Comentarios</a>
     </nav>
 
     <a href="../Login/index.html" class="logout">Salir</a>
   </header>
 
-  <!-- SIDEBAR (solo Historial) -->
+  <!-- SIDEBAR (Historial, Posiciones, Racks) -->
   <aside class="sidebar" id="sidebar" aria-hidden="true">
     <nav class="sidenav">
       <a href="#historial" class="accent">Historial</a>
+      <a href="#posiciones">Posiciones</a>
+      <a href="#racks">Racks</a>
     </nav>
   </aside>
   <div class="backdrop" id="backdrop" hidden></div>
@@ -121,7 +122,7 @@
       </table>
     </section>
 
-    <!-- CONFIRMACIÓN -->
+    <!-- CONFIRMACIÓN (con barra de progreso) -->
     <section id="confirmacion" class="panel">
       <header class="panel-header"><h2>Confirmación de fin</h2></header>
       <table class="table" id="tblConfirm">
@@ -290,3 +291,4 @@
   <script src="Controlistas.js"></script>
 </body>
 </html>
+
