@@ -35,7 +35,7 @@ body {
   color: var(--c-text)
 }
 
-/* ===== TOPBAR (una sola línea, sin scroll) ===== */
+/* ===== TOPBAR ===== */
 .topbar {
   position: sticky;
   top: 0;
@@ -72,10 +72,8 @@ body {
   display: flex;
   gap: .3rem;
   flex-wrap: nowrap;
-  /* fuerza 1 línea */
   align-items: center;
-  min-width: 0;
-  /* evita crecimiento */
+  min-width: 0
 }
 
 .topnav a {
@@ -112,7 +110,6 @@ body {
   font-size: .85rem
 }
 
-/* En pantallas muy pequeñas reducimos tipografía para que quepa */
 @media(max-width:900px) {
 
   .topnav a,
@@ -562,7 +559,7 @@ button.ghost:hover {
   justify-content: flex-end
 }
 
-/* ===== PROGRESS (Tiempo restante con animación) ===== */
+/* ===== PROGRESS (Tiempo restante) ===== */
 .restante-wrap {
   min-width: 210px
 }
@@ -576,7 +573,7 @@ button.ghost:hover {
   overflow: hidden;
   background: repeating-linear-gradient(135deg, rgba(251, 191, 36, .18) 0 12px, rgba(251, 191, 36, .10) 12px 24px);
   background-size: 24px 24px;
-  animation: stripes-move 2.2s linear infinite;
+  animation: stripes-move 2.2s linear infinite
 }
 
 .progress .bar {
@@ -586,12 +583,12 @@ button.ghost:hover {
   height: 100%;
   background: linear-gradient(90deg, #f59e0b, #f59e0b);
   opacity: .6;
-  transition: width 1s linear;
+  transition: width 1s linear
 }
 
 .progress.completed {
   animation: none;
-  background: repeating-linear-gradient(135deg, rgba(34, 197, 94, .18) 0 12px, rgba(34, 197, 94, .10) 12px 24px);
+  background: repeating-linear-gradient(135deg, rgba(34, 197, 94, .18) 0 12px, rgba(34, 197, 94, .10) 12px 24px)
 }
 
 .progress.completed .bar {
@@ -620,7 +617,7 @@ button.ghost:hover {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion:reduce) {
   .progress {
     animation: none
   }
@@ -628,6 +625,24 @@ button.ghost:hover {
   .progress .bar {
     transition: none
   }
+}
+
+/* ===== STATUS (tabs horizontales) ===== */
+.status-tabs {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: .8rem
+}
+
+.status-tabs .ghost.active {
+  background: color-mix(in oklab, var(--c-primary) 15%, var(--c-panel));
+  border-color: var(--c-primary);
+  color: var(--c-primary)
+}
+
+.sview[hidden] {
+  display: none
 }
 
 /* ===== BREAKPOINTS ===== */
