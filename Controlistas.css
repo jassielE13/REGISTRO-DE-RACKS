@@ -40,13 +40,15 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: .6rem;
   padding: .45rem .75rem;
   background: var(--c-panel);
   border-bottom: 1px solid var(--c-border);
-  box-shadow: var(--shadow)
+  box-shadow: var(--shadow);
+
+  /* NUEVO: centrar la barra superior con grid */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
 }
 
 .hamburger {
@@ -73,7 +75,8 @@ body {
   gap: .3rem;
   flex-wrap: nowrap;
   align-items: center;
-  min-width: 0
+  min-width: 0;
+  justify-self: center
 }
 
 .topnav a {
@@ -100,7 +103,7 @@ body {
 }
 
 .logout {
-  margin-left: auto;
+  justify-self: end;
   background: #ef4444;
   color: #fff;
   padding: .35rem .6rem;
@@ -184,10 +187,18 @@ body {
   border-color: var(--c-border)
 }
 
-.sidenav a.accent {
-  color: #fff;
+/* NUEVO: estado activo */
+.sidenav a.active {
   background: var(--c-primary);
+  color: #fff;
   border-color: var(--c-primary)
+}
+
+/* Si trae .accent por HTML, no se muestre “marcado” a menos que también tenga .active */
+.sidenav a.accent:not(.active) {
+  background: transparent;
+  color: var(--c-text);
+  border-color: transparent
 }
 
 /* ===== CONTAINER & PANELS ===== */
@@ -224,6 +235,10 @@ body {
   color: var(--c-primary)
 }
 
+.panel-sub {
+  margin-top: 1rem
+}
+
 .hint {
   color: var(--c-muted);
   margin-top: .5rem
@@ -246,7 +261,48 @@ body {
   box-shadow: var(--shadow)
 }
 
-/* ===== FORMS ===== */
+/* ===== KPIs HOME ===== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .8rem;
+  margin-bottom: 1rem
+}
+
+.kpi-card {
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  padding: 1rem;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--c-bg) 65%, var(--c-panel)), var(--c-panel));
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: .35rem
+}
+
+.kpi-title {
+  color: var(--c-muted);
+  font-weight: 700
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: .4px
+}
+
+@media(max-width:900px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr)
+  }
+}
+
+@media(max-width:540px) {
+  .kpi-grid {
+    grid-template-columns: 1fr
+  }
+}
+
+/* ===== FORMS / BOTONES ===== */
 .search {
   width: min(300px, 52vw);
   padding: .65rem .8rem;
@@ -470,7 +526,7 @@ button.ghost:hover {
   border: 1px solid rgba(251, 191, 36, .35)
 }
 
-/* ===== COMMENTS ===== */
+/* ===== COMENTARIOS ===== */
 .comments {
   list-style: none;
   display: grid;
@@ -559,7 +615,7 @@ button.ghost:hover {
   justify-content: flex-end
 }
 
-/* ===== PROGRESS (Tiempo restante) ===== */
+/* ===== PROGRESS (Restante) ===== */
 .restante-wrap {
   min-width: 210px
 }
@@ -617,17 +673,7 @@ button.ghost:hover {
   }
 }
 
-@media (prefers-reduced-motion:reduce) {
-  .progress {
-    animation: none
-  }
-
-  .progress .bar {
-    transition: none
-  }
-}
-
-/* ===== STATUS (tabs horizontales) ===== */
+/* ===== STATUS ===== */
 .status-tabs {
   display: flex;
   gap: .5rem;
