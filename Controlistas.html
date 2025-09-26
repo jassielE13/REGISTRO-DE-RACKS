@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="Controlistas.css" />
   <script>
+    /* Mantengo tu comportamiento: si no hay hash, abrir Validación */
     if (!location.hash) location.replace(location.pathname + '#validar');
   </script>
 </head>
@@ -16,8 +17,10 @@
       <span></span><span></span><span></span>
     </button>
 
-    <!-- En una sola línea, sin desplazamiento -->
-    <nav class="topnav">
+    <!-- Navegación superior (centrada con CSS) -->
+    <nav class="topnav" id="mainNav">
+      <a href="#home">Inicio</a>
+
       <a href="#validar">Validación de Módulos</a>
       <a href="#arranque">Arranque de programa</a>
       <a href="#ordenes">Órdenes por crear</a>
@@ -29,9 +32,10 @@
     <a href="index.html" class="logout">Salir</a>
   </header>
 
-  <!-- SIDEBAR (Historial, Posiciones, Racks, Status) -->
+  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar" aria-hidden="true">
     <nav class="sidenav">
+      <!-- Desmarcado por defecto; se marca dinámicamente por hash -->
       <a href="#historial" class="accent">Historial</a>
       <a href="#posiciones">Posiciones</a>
       <a href="#racks">Racks</a>
@@ -41,114 +45,109 @@
   <div class="backdrop" id="backdrop" hidden></div>
 
   <main class="container">
-    <!-- VALIDACIÓN -->
+    <!-- ====== HOME / INICIO ====== -->
+    <section id="home" class="panel">
+      <header class="panel-header"><h2>Inicio</h2></header>
+
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card"><div class="kpi-title">Producción de Entradas (hoy)</div><div class="kpi-value" id="kpiEntradas">0</div></div>
+        <div class="kpi-card"><div class="kpi-title">Producción de Salidas (hoy)</div><div class="kpi-value" id="kpiSalidas">0</div></div>
+        <div class="kpi-card"><div class="kpi-title">Racks disponibles</div><div class="kpi-value" id="kpiRacksOk">0</div></div>
+        <div class="kpi-card"><div class="kpi-title">Posiciones disponibles</div><div class="kpi-value" id="kpiPosOk">0</div></div>
+      </div>
+
+      <div class="panel-sub">
+        <h3 style="margin:.25rem 0 .6rem">Códigos de seco en Entradas (hoy)</h3>
+        <table class="table" id="tblHomeCodigos">
+          <thead><tr><th>Código de seco</th><th>Cantidad total</th><th>Registros</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="hint">Se agrupa por los registros creados hoy por patineros (Entradas).</p>
+      </div>
+    </section>
+
+    <!-- ====== VALIDACIÓN ====== -->
     <section id="validar" class="panel">
       <header class="panel-header"><h2>Validación de Módulos</h2></header>
 
       <div class="tabs">
-        <input type="radio" id="pendL1" name="pendTabs" checked />
-        <label for="pendL1">Línea 1</label>
-
-        <input type="radio" id="pendL2" name="pendTabs" />
-        <label for="pendL2">Línea 2</label>
-
-        <input type="radio" id="pendL3" name="pendTabs" />
-        <label for="pendL3">Línea 3</label>
-
-        <input type="radio" id="pendL4" name="pendTabs" />
-        <label for="pendL4">Línea 4</label>
+        <input type="radio" id="pendL1" name="pendTabs" checked /><label for="pendL1">Línea 1</label>
+        <input type="radio" id="pendL2" name="pendTabs" /><label for="pendL2">Línea 2</label>
+        <input type="radio" id="pendL3" name="pendTabs" /><label for="pendL3">Línea 3</label>
+        <input type="radio" id="pendL4" name="pendTabs" /><label for="pendL4">Línea 4</label>
 
         <div class="tab-content">
           <div class="tab-pane">
-            <table class="table" id="tblPend1">
-              <thead><tr>
-                <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-              </tr></thead><tbody></tbody>
-            </table>
+            <table class="table" id="tblPend1"><thead><tr>
+              <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+              <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
+            </tr></thead><tbody></tbody></table>
           </div>
           <div class="tab-pane">
-            <table class="table" id="tblPend2">
-              <thead><tr>
-                <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-              </tr></thead><tbody></tbody>
-            </table>
+            <table class="table" id="tblPend2"><thead><tr>
+              <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+              <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
+            </tr></thead><tbody></tbody></table>
           </div>
           <div class="tab-pane">
-            <table class="table" id="tblPend3">
-              <thead><tr>
-                <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-              </tr></thead><tbody></tbody>
-            </table>
+            <table class="table" id="tblPend3"><thead><tr>
+              <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+              <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
+            </tr></thead><tbody></tbody></table>
           </div>
           <div class="tab-pane">
-            <table class="table" id="tblPend4">
-              <thead><tr>
-                <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-                <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
-              </tr></thead><tbody></tbody>
-            </table>
+            <table class="table" id="tblPend4"><thead><tr>
+              <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+              <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
+            </tr></thead><tbody></tbody></table>
           </div>
         </div>
       </div>
 
       <p class="hint">
-        El controlista captura <strong>Posición</strong>, <strong>Rack</strong> y <strong>Código de seco</strong> (con opción de <em>escanear</em>).
-        Al guardar, pasa a <strong>Arranque de programa</strong>.
+        El controlista captura <strong>Posición</strong>, <strong>Rack</strong> y <strong>Código de seco</strong> (con opción de escanear).
       </p>
     </section>
 
-    <!-- ARRANQUE -->
+    <!-- ====== ARRANQUE ====== -->
     <section id="arranque" class="panel">
       <header class="panel-header"><h2>Arranque de programa</h2></header>
-      <table class="table" id="tblArranque">
-        <thead><tr>
-          <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-          <th>Rack</th><th>Posición</th><th>Acción</th>
-        </tr></thead><tbody></tbody>
-      </table>
-      <p class="hint">Configura <strong>hora de arranque</strong> y <strong>tiempo de carga (h)</strong> por registro.</p>
+      <table class="table" id="tblArranque"><thead><tr>
+        <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+        <th>Rack</th><th>Posición</th><th>Acción</th>
+      </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- ÓRDENES -->
+    <!-- ====== ÓRDENES ====== -->
     <section id="ordenes" class="panel">
       <header class="panel-header"><h2>Órdenes por crear</h2></header>
-      <table class="table" id="tblOrdenes">
-        <thead><tr>
-          <th>Arranque</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-          <th>Rack</th><th>Posición</th><th>Acción</th>
-        </tr></thead><tbody></tbody>
-      </table>
+      <table class="table" id="tblOrdenes"><thead><tr>
+        <th>Arranque</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+        <th>Rack</th><th>Posición</th><th>Acción</th>
+      </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- CONFIRMACIÓN (con barra de progreso) -->
+    <!-- ====== CONFIRMACIÓN DE FIN ====== -->
     <section id="confirmacion" class="panel">
       <header class="panel-header"><h2>Confirmación de fin</h2></header>
-      <table class="table" id="tblConfirm">
-        <thead><tr>
-          <th>Arranque</th><th>Tiempo carga</th><th>Restante</th>
-          <th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th><th>Acción</th>
-        </tr></thead><tbody></tbody>
-      </table>
+      <table class="table" id="tblConfirm"><thead><tr>
+        <th>Arranque</th><th>Tiempo carga</th><th>Restante</th>
+        <th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th><th>Acción</th>
+      </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- PRODUCCIÓN -->
+    <!-- ====== PRODUCCIÓN ====== -->
     <section id="produccion" class="panel">
       <header class="panel-header row-between">
-        <h2>Secuencia de producción</h2>
-        <span id="prodTotal" class="badge">Total: 0</span>
+        <h2>Secuencia de producción</h2><span id="prodTotal" class="badge">Total: 0</span>
       </header>
-      <table class="table" id="tblProdAll">
-        <thead><tr>
-          <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-          <th>Rack</th><th>Posición</th><th>Validado/Orden</th>
-        </tr></thead><tbody></tbody>
-      </table>
+      <table class="table" id="tblProdAll"><thead><tr>
+        <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+        <th>Rack</th><th>Posición</th><th>Validado/Orden</th>
+      </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- POSICIONES -->
+    <!-- ====== POSICIONES ====== -->
     <section id="posiciones" class="panel">
       <header class="panel-header row-between">
         <h2>Posiciones (P001–P450)</h2>
@@ -157,7 +156,7 @@
       <ul id="gridPos" class="grid-catalogo"></ul>
     </section>
 
-    <!-- RACKS -->
+    <!-- ====== RACKS ====== -->
     <section id="racks" class="panel">
       <header class="panel-header row-between">
         <h2>Racks (Rack001–Rack435)</h2>
@@ -166,7 +165,7 @@
       <ul id="gridRack" class="grid-catalogo"></ul>
     </section>
 
-    <!-- COMENTARIOS -->
+    <!-- ====== COMENTARIOS ====== -->
     <section id="comentarios" class="panel">
       <header class="panel-header"><h2>Comentarios</h2></header>
       <h3 style="margin:.25rem 0 .5rem">Pendientes</h3>
@@ -175,7 +174,7 @@
       <ul id="ulComentariosLeidos" class="comments muted"></ul>
     </section>
 
-    <!-- HISTORIAL -->
+    <!-- ====== HISTORIAL ====== -->
     <section id="historial" class="panel">
       <header class="panel-header row-between">
         <h2>Historial</h2>
@@ -204,7 +203,7 @@
       <p class="hint">Clic en un registro para ver detalle completo.</p>
     </section>
 
-    <!-- STATUS (NUEVO) -->
+    <!-- ====== STATUS ====== -->
     <section id="status" class="panel">
       <header class="panel-header"><h2>Status</h2></header>
 
@@ -218,33 +217,23 @@
 
       <div class="status-views">
         <div class="sview" data-sview="soon">
-          <table class="table" id="tblSoon">
-            <thead><tr>
-              <th>Arranque</th><th>Restante</th><th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th>
-            </tr></thead><tbody></tbody>
-          </table>
+          <table class="table" id="tblSoon"><thead><tr>
+            <th>Arranque</th><th>Restante</th><th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th>
+          </tr></thead><tbody></tbody></table>
         </div>
-
         <div class="sview" data-sview="done" hidden>
-          <table class="table" id="tblDone">
-            <thead><tr>
-              <th>Arranque</th><th>Tiempo carga</th><th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th>
-            </tr></thead><tbody></tbody>
-          </table>
+          <table class="table" id="tblDone"><thead><tr>
+            <th>Arranque</th><th>Tiempo carga</th><th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th>
+          </tr></thead><tbody></tbody></table>
         </div>
-
         <div class="sview" data-sview="pre" hidden>
-          <table class="table" id="tblPre">
-            <thead><tr>
-              <th>Creado</th><th>Línea destino</th><th>Código seco</th><th>Cantidad</th><th>Rack</th><th>Posición</th>
-            </tr></thead><tbody></tbody>
-          </table>
+          <table class="table" id="tblPre"><thead><tr>
+            <th>Creado</th><th>Línea destino</th><th>Código seco</th><th>Cantidad</th><th>Rack</th><th>Posición</th>
+          </tr></thead><tbody></tbody></table>
         </div>
-
         <div class="sview" data-sview="racks" hidden>
           <ul class="grid-catalogo" id="listRacksOk"></ul>
         </div>
-
         <div class="sview" data-sview="pos" hidden>
           <ul class="grid-catalogo" id="listPosOk"></ul>
         </div>
@@ -252,8 +241,7 @@
     </section>
   </main>
 
-  <!-- MODALES -->
-  <!-- Validar -->
+  <!-- ===== MODALES ===== -->
   <dialog id="modalValidar" class="modal">
     <form method="dialog" class="modal-content" id="formValidar">
       <h3>Validar módulo</h3>
@@ -293,19 +281,12 @@
     </form>
   </dialog>
 
-  <!-- Arranque -->
   <dialog id="modalArranque" class="modal">
     <form method="dialog" class="modal-content" id="formArranque">
       <h3>Configurar arranque</h3>
       <div class="grid2">
-        <label class="field">
-          <span>Fecha y hora de arranque</span>
-          <input id="arranqueDT" type="datetime-local" required />
-        </label>
-        <label class="field">
-          <span>Tiempo de carga (horas)</span>
-          <input id="arranqueHoras" type="number" min="1" step="1" value="24" required />
-        </label>
+        <label class="field"><span>Fecha y hora de arranque</span><input id="arranqueDT" type="datetime-local" required /></label>
+        <label class="field"><span>Tiempo de carga (horas)</span><input id="arranqueHoras" type="number" min="1" step="1" value="24" required /></label>
       </div>
       <div class="actions end">
         <button class="primary" value="save">Arrancar</button>
@@ -314,29 +295,38 @@
     </form>
   </dialog>
 
-  <!-- Info registro -->
   <dialog id="modalInfo" class="modal">
     <form method="dialog" class="modal-content">
       <h3>Detalle del registro</h3>
       <div id="infoBody" class="details"></div>
-      <div class="actions end">
-        <button class="secondary" value="close">Cerrar</button>
-      </div>
+      <div class="actions end"><button class="secondary" value="close">Cerrar</button></div>
     </form>
   </dialog>
 
-  <!-- Info Historial -->
   <dialog id="modalHistInfo" class="modal">
     <form method="dialog" class="modal-content">
       <h3>Detalle completo</h3>
       <div id="histInfoBody" class="details"></div>
-      <div class="actions end">
-        <button class="secondary" value="close">Cerrar</button>
-      </div>
+      <div class="actions end"><button class="secondary" value="close">Cerrar</button></div>
     </form>
   </dialog>
 
   <script src="Controlistas.js"></script>
+
+  <!-- Marca activo en el sidebar por hash y quita acento por defecto -->
+  <script>
+    (function(){
+      const links = Array.from(document.querySelectorAll('.sidenav a'));
+      const hist = document.querySelector('.sidenav a.accent');
+      if (hist) hist.classList.remove('accent');  // desmarcar Historial por defecto
+
+      function markSideActive(){
+        const h = (location.hash || '#validar').toLowerCase();
+        links.forEach(a => a.classList.toggle('active', a.getAttribute('href').toLowerCase() === h));
+      }
+      window.addEventListener('hashchange', markSideActive);
+      markSideActive();
+    })();
+  </script>
 </body>
 </html>
-
