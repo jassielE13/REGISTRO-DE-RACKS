@@ -1,4 +1,4 @@
-// ========== Controlistas.js (con Status y progreso animado) ==========
+// ========== Controlistas.js ==========
 const K={
   PEND:"controlistas_pendientes",ARR:"controlistas_arranque",ORD:"controlistas_ordenes",
   CON:"controlistas_confirm",PROD:"controlistas_produccion",RET:"retirar_listas",
@@ -31,7 +31,7 @@ function markActive(){
   const h=(location.hash||"").toLowerCase()||"#validar";
   $$(".topnav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href").toLowerCase()===h));
 }
-window.addEventListener("hashchange",()=>{ markActive(); if(location.hash==="#confirmacion") rCon(); if(location.hash==="#status") renderStatus(); });
+window.addEventListener("hashchange",()=>{ markActive(); if(location.hash==="#confirmacion") rCon(); if(location.hash==="#status") renderStatus(); if(location.hash==="#home") renderHome(); });
 markActive();
 
 // Refs
@@ -312,7 +312,7 @@ CSV?.addEventListener("click",()=>{
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 });
 
-// ===== STATUS (NUEVO) =====
+// ===== STATUS =====
 const ST_TABS=$("#statusTabs");
 const T_SOON=$("#tblSoon tbody"), T_DONE=$("#tblDone tbody"), T_PRE=$("#tblPre tbody"),
       L_RACKS=$("#listRacksOk"), L_POS=$("#listPosOk");
@@ -321,13 +321,11 @@ function showStatus(view){
   $$("#status .status-tabs .ghost").forEach(b=>b.classList.toggle("active", b.dataset.stab===view));
   $$("#status .sview").forEach(v=>v.hidden = v.dataset.sview!==view);
 }
-
 ST_TABS?.addEventListener("click", e=>{
   const b=e.target.closest("button[data-stab]"); if(!b) return;
   showStatus(b.dataset.stab);
-  renderStatus(); // re-calcula por si hubo cambios
+  renderStatus();
 });
-
 function renderSoon(){
   T_SOON.innerHTML="";
   const arr=J(K.CON,[]);
@@ -404,6 +402,55 @@ function renderStatus(){
   renderSoon(); renderDone(); renderPre(); renderRacksOk(); renderPosOk();
 }
 
+// ===== HOME =====
+const KPI_ENT=$("#kpiEntradas"), KPI_SAL=$("#kpiSalidas"), KPI_RACK=$("#kpiRacksOk"), KPI_POS=$("#kpiPosOk");
+const TB_HOME=$("#tblHomeCodigos tbody");
+function isToday(ts){
+  if(!ts) return false;
+  const d=new Date(ts), n=new Date();
+  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+}
+function renderHome(){
+  const allP = J(K.PEND,[]);
+  const entradasHoy = (allP||[]).filter(r=>r && r.tipo!=="salida" && isToday(r.creadoEn));
+  const totalEnt = entradasHoy.reduce((s,r)=>s+(parseFloat(r.cantidad)||0),0);
+
+  const salidasHoy = (allP||[]).filter(r=>r && r.tipo==="salida" && isToday(r.salida?.at));
+  const totalSal = salidasHoy.reduce((s,r)=>s+(parseFloat(r.cantidad)||0),0);
+
+  let racksOk=0; for(let i=1;i<=435;i++){ const k="Rack"+pad(i); if((RS?.[k]?.estado)|| (EU.racks?.[k]?"en_uso":"disponible")){ const st=RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible"); if(st==="disponible") racksOk++; } else racksOk++; }
+  let posOk=0; for(let i=1;i<=450;i++){ const k="P"+pad(i); if((PS?.[k]?.estado)|| (EU.posiciones?.[k]?"en_uso":"disponible")){ const st=PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible"); if(st==="disponible") posOk++; } else posOk++; }
+
+  if(KPI_ENT) KPI_ENT.textContent = totalEnt;
+  if(KPI_SAL) KPI_SAL.textContent = totalSal;
+  if(KPI_RACK) KPI_RACK.textContent = racksOk;
+  if(KPI_POS) KPI_POS.textContent = posOk;
+
+  if(TB_HOME){
+    TB_HOME.innerHTML="";
+    if(!entradasHoy.length){
+      TB_HOME.innerHTML = `<tr><td colspan="3" style="text-align:center;opacity:.7">Sin registros de hoy</td></tr>`;
+    } else {
+      const group = {};
+      entradasHoy.forEach(r=>{
+        const k = r.codigoSeco || "—";
+        (group[k]=group[k]||{cant:0,regs:0});
+        group[k].cant += parseFloat(r.cantidad)||0;
+        group[k].regs += 1;
+      });
+      Object.entries(group).sort((a,b)=>b[1].cant - a[1].cant).forEach(([code,info])=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${code}</td><td>${info.cant}</td><td>${info.regs}</td>`;
+        TB_HOME.appendChild(tr);
+      });
+    }
+  }
+}
+window.addEventListener("hashchange", ()=>{ if(location.hash==="#home") renderHome(); });
+window.addEventListener("storage", e=>{
+  if([K.PEND,K.USE,K.PSTAT,K.RSTAT].includes(e.key)) renderHome();
+});
+
 // ===== Render =====
 function render(){
   P=J(K.PEND,[]); A=J(K.ARR,[]); O=J(K.ORD,[]); C=J(K.CON,[]); PR=J(K.PROD,[]);
@@ -411,6 +458,7 @@ function render(){
   rPend(); rArr(); rOrd(); rCon(); rProd(); rHist(); rPos(PSR?.value); rRack(RSR?.value);
   markActive();
   if(location.hash==="#status") renderStatus();
+  if(location.hash==="#home") renderHome();
 }
 window.addEventListener("storage",e=>{
   if([K.USE,K.PSTAT,K.RSTAT,K.RET,K.RETH,K.PROD,K.PEND,K.ARR,K.ORD,K.CON].includes(e.key)) render()
