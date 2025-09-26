@@ -29,12 +29,13 @@
     <a href="../Login/index.html" class="logout">Salir</a>
   </header>
 
-  <!-- SIDEBAR (Historial, Posiciones, Racks) -->
+  <!-- SIDEBAR (Historial, Posiciones, Racks, Status) -->
   <aside class="sidebar" id="sidebar" aria-hidden="true">
     <nav class="sidenav">
       <a href="#historial" class="accent">Historial</a>
       <a href="#posiciones">Posiciones</a>
       <a href="#racks">Racks</a>
+      <a href="#status">Status</a>
     </nav>
   </aside>
   <div class="backdrop" id="backdrop" hidden></div>
@@ -202,6 +203,53 @@
       </table>
       <p class="hint">Clic en un registro para ver detalle completo.</p>
     </section>
+
+    <!-- STATUS (NUEVO) -->
+    <section id="status" class="panel">
+      <header class="panel-header"><h2>Status</h2></header>
+
+      <div class="status-tabs" id="statusTabs">
+        <button class="ghost active" data-stab="soon">Circuitos por terminar</button>
+        <button class="ghost" data-stab="done">Posiciones Terminadas</button>
+        <button class="ghost" data-stab="pre">Presurtido</button>
+        <button class="ghost" data-stab="racks">Racks Disponibles</button>
+        <button class="ghost" data-stab="pos">Posiciones Disponibles</button>
+      </div>
+
+      <div class="status-views">
+        <div class="sview" data-sview="soon">
+          <table class="table" id="tblSoon">
+            <thead><tr>
+              <th>Arranque</th><th>Restante</th><th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+
+        <div class="sview" data-sview="done" hidden>
+          <table class="table" id="tblDone">
+            <thead><tr>
+              <th>Arranque</th><th>Tiempo carga</th><th>Línea</th><th>Código seco</th><th>Rack</th><th>Posición</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+
+        <div class="sview" data-sview="pre" hidden>
+          <table class="table" id="tblPre">
+            <thead><tr>
+              <th>Creado</th><th>Línea destino</th><th>Código seco</th><th>Cantidad</th><th>Rack</th><th>Posición</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+
+        <div class="sview" data-sview="racks" hidden>
+          <ul class="grid-catalogo" id="listRacksOk"></ul>
+        </div>
+
+        <div class="sview" data-sview="pos" hidden>
+          <ul class="grid-catalogo" id="listPosOk"></ul>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- MODALES -->
@@ -291,4 +339,3 @@
   <script src="Controlistas.js"></script>
 </body>
 </html>
-
