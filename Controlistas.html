@@ -5,9 +5,29 @@
   <title>Controlistas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="Controlistas.css" />
+
+  <!-- Ajuste de hash por defecto -->
   <script>
     if (!location.hash) location.replace(location.pathname + '#validar');
   </script>
+
+  <!-- Estilos mínimos para el modal de escaneo (no tocan tu tema) -->
+  <style>
+    .scanner-modal .modal-content{width:min(96vw,820px)}
+    .scanner-wrap{position:relative; background:#111; border-radius:12px; overflow:hidden}
+    #scannerViewport{position:relative; min-height:260px}
+    #scannerViewport video, #scannerViewport canvas { width:100%; height:auto; }
+    .scan-overlay{
+      position:absolute; inset:0; border:2px dashed rgba(0,255,170,.5); border-radius:10px;
+      margin:12px; pointer-events:none;
+    }
+    .scan-hud{display:flex; gap:.5rem; align-items:center; justify-content:space-between; margin:.5rem 0}
+    .scan-status{font-size:.9rem; opacity:.85}
+    .scan-found{font-weight:700}
+  </style>
+
+  <!-- QuaggaJS para lectura de códigos de barras -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js" integrity="sha512-xn8b8d8bQ3f6W0ZpQvUtlwDkpk9kQqE2ZzOqY1qxbVv+qQK0rS4aF0J8G0K8Q3nQy2lBDJmJv5t9XzK4wTi6xA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <!-- TOPBAR -->
@@ -100,7 +120,7 @@
       </div>
 
       <p class="hint">
-        El controlista captura <strong>Posición</strong>, <strong>Rack</strong> y <strong>Código de seco</strong> (con opción de escanear).
+        El controlista captura <strong>Posición</strong>, <strong>Rack</strong> y <strong>Código de seco</strong> (con opción de <strong>escanear código de barras</strong>).
       </p>
     </section>
 
@@ -248,7 +268,7 @@
     </section>
   </main>
 
-  <!-- ===== MODALES ===== -->
+  <!-- ===== MODALES YA EXISTENTES (Validar/Arranque/Info/Hist) – sin cambios estructurales ===== -->
   <dialog id="modalValidar" class="modal">
     <form method="dialog" class="modal-content" id="formValidar">
       <h3>Validar módulo</h3>
@@ -276,8 +296,8 @@
       <label class="field" style="margin-top:.5rem">
         <span>Código de seco (escriba o escanee)</span>
         <div class="with-actions">
-          <input id="valCodigo" type="text" placeholder="Ej. G-65-880" required />
-          <button type="button" class="ghost" id="btnScanVal">Escanear QR</button>
+          <input id="valCodigo" type="text" placeholder="Ej. 1522761 / G-65-880" required />
+          <button type="button" class="ghost" id="btnScanVal">Escanear</button>
         </div>
       </label>
 
@@ -318,7 +338,7 @@
     </form>
   </dialog>
 
-  <!-- Modal de edición de Racks (con observaciones, ya conectado en JS) -->
+  <!-- Modal de edición de Racks (observaciones) -->
   <dialog id="modalRackEdit" class="modal">
     <form method="dialog" class="modal-content" id="formRackEdit">
       <h3 id="rkEditTitle">Editar Rack</h3>
@@ -372,6 +392,30 @@
     </form>
   </dialog>
 
+  <!-- ========= NUEVO: Modal de ESCÁNER ========= -->
+  <dialog id="scannerModal" class="modal scanner-modal">
+    <form method="dialog" class="modal-content">
+      <h3>Escanear código de barras</h3>
+
+      <div class="scan-hud">
+        <select id="cameraSelect" class="search"></select>
+        <span class="scan-status" id="scanStatus">Inicializando cámara…</span>
+      </div>
+
+      <div class="scanner-wrap">
+        <div id="scannerViewport">
+          <div class="scan-overlay"></div>
+        </div>
+      </div>
+
+      <p class="hint" style="margin:.5rem 0 0">Apunta el código dentro del recuadro. Se completará automáticamente.</p>
+
+      <div class="actions end" style="margin-top:.75rem">
+        <button class="secondary" value="cancel" id="scanCloseBtn">Cerrar</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="Controlistas.js"></script>
 
   <script>
@@ -380,9 +424,9 @@
       const links = Array.from(document.querySelectorAll('.sidenav a'));
       function markSideActive(){
         const h = (location.hash || '#validar').toLowerCase();
-        links.forEach(a => a.classList.toggle('active', a.getAttribute('href').toLowerCase() === h));
+        links.forEach(a => a.classList.toggle("active", a.getAttribute("href").toLowerCase() === h));
       }
-      window.addEventListener('hashchange', markSideActive);
+      window.addEventListener("hashchange", markSideActive);
       markSideActive();
     })();
   </script>
