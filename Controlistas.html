@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="Controlistas.css" />
   <script>
-    /* Mantengo tu comportamiento: si no hay hash, abrir Validación */
     if (!location.hash) location.replace(location.pathname + '#validar');
   </script>
 </head>
@@ -17,10 +16,8 @@
       <span></span><span></span><span></span>
     </button>
 
-    <!-- Navegación superior (centrada con CSS) -->
     <nav class="topnav" id="mainNav">
       <a href="#home">Inicio</a>
-
       <a href="#validar">Validación de Módulos</a>
       <a href="#arranque">Arranque de programa</a>
       <a href="#ordenes">Órdenes por crear</a>
@@ -29,14 +26,13 @@
       <a href="#comentarios" id="linkComentarios">Comentarios</a>
     </nav>
 
-    <a href="index.html" class="logout">Salir</a>
+    <a href="../Login/index.html" class="logout">Salir</a>
   </header>
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar" aria-hidden="true">
     <nav class="sidenav">
-      <!-- Desmarcado por defecto; se marca dinámicamente por hash -->
-      <a href="#historial" class="accent">Historial</a>
+      <a href="#historial">Historial</a>
       <a href="#posiciones">Posiciones</a>
       <a href="#racks">Racks</a>
       <a href="#status">Status</a>
@@ -45,10 +41,9 @@
   <div class="backdrop" id="backdrop" hidden></div>
 
   <main class="container">
-    <!-- ====== HOME / INICIO ====== -->
-    <section id="home" class="panel">
+    <!-- HOME -->
+    <section id="home" class="panel" hidden>
       <header class="panel-header"><h2>Inicio</h2></header>
-
       <div class="kpi-grid" id="kpiGrid">
         <div class="kpi-card"><div class="kpi-title">Producción de Entradas (hoy)</div><div class="kpi-value" id="kpiEntradas">0</div></div>
         <div class="kpi-card"><div class="kpi-title">Producción de Salidas (hoy)</div><div class="kpi-value" id="kpiSalidas">0</div></div>
@@ -66,36 +61,36 @@
       </div>
     </section>
 
-    <!-- ====== VALIDACIÓN ====== -->
+    <!-- VALIDAR -->
     <section id="validar" class="panel">
       <header class="panel-header"><h2>Validación de Módulos</h2></header>
 
-      <div class="tabs">
+      <div class="tabs" id="valTabs">
         <input type="radio" id="pendL1" name="pendTabs" checked /><label for="pendL1">Línea 1</label>
         <input type="radio" id="pendL2" name="pendTabs" /><label for="pendL2">Línea 2</label>
         <input type="radio" id="pendL3" name="pendTabs" /><label for="pendL3">Línea 3</label>
         <input type="radio" id="pendL4" name="pendTabs" /><label for="pendL4">Línea 4</label>
 
         <div class="tab-content">
-          <div class="tab-pane">
+          <div class="tab-pane" data-pane="1">
             <table class="table" id="tblPend1"><thead><tr>
               <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
               <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
             </tr></thead><tbody></tbody></table>
           </div>
-          <div class="tab-pane">
+          <div class="tab-pane" data-pane="2">
             <table class="table" id="tblPend2"><thead><tr>
               <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
               <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
             </tr></thead><tbody></tbody></table>
           </div>
-          <div class="tab-pane">
+          <div class="tab-pane" data-pane="3">
             <table class="table" id="tblPend3"><thead><tr>
               <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
               <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
             </tr></thead><tbody></tbody></table>
           </div>
-          <div class="tab-pane">
+          <div class="tab-pane" data-pane="4">
             <table class="table" id="tblPend4"><thead><tr>
               <th>Creado</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
               <th>Rack</th><th>Posición</th><th>Registrado por</th><th>Acción</th>
@@ -109,8 +104,8 @@
       </p>
     </section>
 
-    <!-- ====== ARRANQUE ====== -->
-    <section id="arranque" class="panel">
+    <!-- ARRANQUE -->
+    <section id="arranque" class="panel" hidden>
       <header class="panel-header"><h2>Arranque de programa</h2></header>
       <table class="table" id="tblArranque"><thead><tr>
         <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
@@ -118,8 +113,8 @@
       </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- ====== ÓRDENES ====== -->
-    <section id="ordenes" class="panel">
+    <!-- ÓRDENES -->
+    <section id="ordenes" class="panel" hidden>
       <header class="panel-header"><h2>Órdenes por crear</h2></header>
       <table class="table" id="tblOrdenes"><thead><tr>
         <th>Arranque</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
@@ -127,8 +122,8 @@
       </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- ====== CONFIRMACIÓN DE FIN ====== -->
-    <section id="confirmacion" class="panel">
+    <!-- CONFIRMACIÓN -->
+    <section id="confirmacion" class="panel" hidden>
       <header class="panel-header"><h2>Confirmación de fin</h2></header>
       <table class="table" id="tblConfirm"><thead><tr>
         <th>Arranque</th><th>Tiempo carga</th><th>Restante</th>
@@ -136,19 +131,31 @@
       </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- ====== PRODUCCIÓN ====== -->
-    <section id="produccion" class="panel">
+    <!-- PRODUCCIÓN -->
+    <section id="produccion" class="panel" hidden>
       <header class="panel-header row-between">
-        <h2>Secuencia de producción</h2><span id="prodTotal" class="badge">Total: 0</span>
+        <h2>Secuencia de producción</h2>
+        <div class="row-between" style="gap:.5rem">
+          <span id="prodTotal" class="badge">Total: 0</span>
+          <span id="selCount" class="badge">Seleccionados: 0</span>
+          <button id="sendL1" class="accent">Enviar a Línea 1</button>
+          <button id="sendL2" class="accent">Enviar a Línea 2</button>
+          <button id="sendL3" class="accent">Enviar a Línea 3</button>
+        </div>
       </header>
-      <table class="table" id="tblProdAll"><thead><tr>
-        <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
-        <th>Rack</th><th>Posición</th><th>Validado/Orden</th>
-      </tr></thead><tbody></tbody></table>
+      <table class="table" id="tblProdAll">
+        <thead><tr>
+          <th style="width:34px"><input type="checkbox" id="chkAll"/></th>
+          <th>Creado</th><th>Línea</th><th>Operador</th><th>Código seco</th><th>Cantidad</th>
+          <th>Rack</th><th>Posición</th><th>Validado/Orden</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="hint">Selecciona varios registros y usa los botones “Enviar a Línea …”.</p>
     </section>
 
-    <!-- ====== POSICIONES ====== -->
-    <section id="posiciones" class="panel">
+    <!-- POSICIONES -->
+    <section id="posiciones" class="panel" hidden>
       <header class="panel-header row-between">
         <h2>Posiciones (P001–P450)</h2>
         <input id="posSearch" class="search" type="search" placeholder="Buscar" />
@@ -156,8 +163,8 @@
       <ul id="gridPos" class="grid-catalogo"></ul>
     </section>
 
-    <!-- ====== RACKS ====== -->
-    <section id="racks" class="panel">
+    <!-- RACKS -->
+    <section id="racks" class="panel" hidden>
       <header class="panel-header row-between">
         <h2>Racks (Rack001–Rack435)</h2>
         <input id="rackSearch" class="search" type="search" placeholder="Buscar" />
@@ -165,8 +172,8 @@
       <ul id="gridRack" class="grid-catalogo"></ul>
     </section>
 
-    <!-- ====== COMENTARIOS ====== -->
-    <section id="comentarios" class="panel">
+    <!-- COMENTARIOS -->
+    <section id="comentarios" class="panel" hidden>
       <header class="panel-header"><h2>Comentarios</h2></header>
       <h3 style="margin:.25rem 0 .5rem">Pendientes</h3>
       <ul id="ulComentarios" class="comments"></ul>
@@ -174,8 +181,8 @@
       <ul id="ulComentariosLeidos" class="comments muted"></ul>
     </section>
 
-    <!-- ====== HISTORIAL ====== -->
-    <section id="historial" class="panel">
+    <!-- HISTORIAL -->
+    <section id="historial" class="panel" hidden>
       <header class="panel-header row-between">
         <h2>Historial</h2>
         <div class="row-between" style="gap:.5rem">
@@ -203,8 +210,8 @@
       <p class="hint">Clic en un registro para ver detalle completo.</p>
     </section>
 
-    <!-- ====== STATUS ====== -->
-    <section id="status" class="panel">
+    <!-- STATUS -->
+    <section id="status" class="panel" hidden>
       <header class="panel-header"><h2>Status</h2></header>
 
       <div class="status-tabs" id="statusTabs">
@@ -311,15 +318,66 @@
     </form>
   </dialog>
 
+  <!-- Modal de edición de Racks (con observaciones, ya conectado en JS) -->
+  <dialog id="modalRackEdit" class="modal">
+    <form method="dialog" class="modal-content" id="formRackEdit">
+      <h3 id="rkEditTitle">Editar Rack</h3>
+
+      <label class="field">
+        <span>Status</span>
+        <select id="rkEstadoSel">
+          <option value="disponible">Disponible</option>
+          <option value="en_uso">En uso</option>
+          <option value="mantenimiento">Mantenimiento</option>
+        </select>
+      </label>
+
+      <div class="field">
+        <span>Soporte de Drene</span>
+        <div class="chip-row">
+          <button type="button" class="chip danger" id="btnSoporteFalt">Faltante</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Niveles con Porta Manguera faltante</span>
+        <div class="chip-row">
+          <button type="button" class="chip" data-pm="1">1</button>
+          <button type="button" class="chip" data-pm="2">2</button>
+          <button type="button" class="chip" data-pm="3">3</button>
+          <button type="button" class="chip" data-pm="4">4</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Niveles con Tina dañada</span>
+        <div class="chip-row">
+          <button type="button" class="chip warn" data-tn="1">1</button>
+          <button type="button" class="chip warn" data-tn="2">2</button>
+          <button type="button" class="chip warn" data-tn="3">3</button>
+          <button type="button" class="chip warn" data-tn="4">4</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Observaciones</span>
+        <textarea id="rkObsText" rows="3" placeholder="Escribe observaciones..."></textarea>
+      </label>
+
+      <div class="actions end">
+        <button class="secondary" value="cancel">Cancelar</button>
+        <button type="button" class="ghost" id="rkBtnClear">Limpiar</button>
+        <button class="primary" value="save">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="Controlistas.js"></script>
 
-  <!-- Marca activo en el sidebar por hash y quita acento por defecto -->
   <script>
+    // Marca activo en sidebar
     (function(){
       const links = Array.from(document.querySelectorAll('.sidenav a'));
-      const hist = document.querySelector('.sidenav a.accent');
-      if (hist) hist.classList.remove('accent');  // desmarcar Historial por defecto
-
       function markSideActive(){
         const h = (location.hash || '#validar').toLowerCase();
         links.forEach(a => a.classList.toggle('active', a.getAttribute('href').toLowerCase() === h));
