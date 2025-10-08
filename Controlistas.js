@@ -16,6 +16,9 @@ const pad=n=>String(n).padStart(3,"0"),
       isoLocal=t=>{if(!t)return now();let d=new Date(t);return isNaN(d)?now():d.toISOString()},
       hms=ms=>{if(ms<0)ms=0;let s=Math.floor(ms/1e3),h=String(Math.floor(s/3600)).padStart(2,"0"),m=String(Math.floor(s%3600/60)).padStart(2,"0"),se=String(s%60).padStart(2,"0");return`${h}:${m}:${se}`};
 
+// ===== broadcast racks (observaciones)
+const RACKS_STATUS_CH = new BroadcastChannel('racks-status-updates');
+
 let P=J(K.PEND,[]),A=J(K.ARR,[]),O=J(K.ORD,[]),C=J(K.CON,[]),PR=J(K.PROD,[]),
     PS=J(K.PSTAT,{}),RS=J(K.RSTAT,{}),EU=J(K.USE,{posiciones:{},racks:{}});
 
@@ -26,27 +29,61 @@ mT?.addEventListener("click",()=>menu(!document.body.classList.contains("menu-op
 bd?.addEventListener("click",()=>menu(false));
 $$(".sidenav a").forEach(a=>a.addEventListener("click",()=>menu(false)));
 
+// ===== Secciones: solo una visible
+const SECTIONS = $$("main .panel");
+function showOnly(hash){
+  const h = (hash || location.hash || "#validar").toLowerCase();
+  const id = h.replace(/^#/, "");
+  let shown=false;
+  SECTIONS.forEach(sec=>{
+    if(sec.id===id){sec.hidden=false; shown=true;}
+    else sec.hidden=true;
+  });
+  if(!shown){ const v=$("#validar"); if(v) v.hidden=false; }
+  markActive();
+  if(h==="#home") renderHome();
+  if(h==="#confirmacion") rCon();
+  if(h==="#status") renderStatus();
+}
+window.addEventListener("hashchange", ()=>showOnly());
+document.addEventListener("DOMContentLoaded", ()=>showOnly());
+
 // Topnav activo
 function markActive(){
   const h=(location.hash||"").toLowerCase()||"#validar";
   $$(".topnav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href").toLowerCase()===h));
 }
-window.addEventListener("hashchange",()=>{ markActive(); if(location.hash==="#confirmacion") rCon(); if(location.hash==="#status") renderStatus(); if(location.hash==="#home") renderHome(); });
-markActive();
 
-// Refs
+// ======= Tabs Validación: mostrar un pane a la vez =======
+(function wireTabs(){
+  const group = $("#valTabs");
+  if(!group) return;
+  const radios = $$('input[type="radio"]', group);
+  const panes = $$('.tab-content .tab-pane', group);
+  function sync(){
+    let idx = radios.findIndex(r=>r.checked);
+    if(idx<0) idx=0;
+    panes.forEach((p,i)=> p.style.display = (i===idx)?'block':'none');
+  }
+  radios.forEach(r=>r.addEventListener('change', sync));
+  sync();
+})();
+
+// ==== Refs ====
 const TP={1:$("#tblPend1 tbody"),2:$("#tblPend2 tbody"),3:$("#tblPend3 tbody"),4:$("#tblPend4 tbody")},
       TA=$("#tblArranque tbody"), TO=$("#tblOrdenes tbody"), TC=$("#tblConfirm tbody"),
-      TPA=$("#tblProdAll tbody"), PT=$("#prodTotal"),
-      TH=$("#tblHistAll tbody"),
-      HR=$("#histRange"), SR=$("#shiftRange"), CSV=$("#histCSV"),
-      GP=$("#gridPos"), GR=$("#gridRack"), PSR=$("#posSearch"), RSR=$("#rackSearch");
+      TPA=$("#tblProdAll tbody"), PT=$("#prodTotal"), CHK_ALL=$("#chkAll"),
+      SEL_COUNT=$("#selCount"), SEND1=$("#sendL1"), SEND2=$("#sendL2"), SEND3=$("#sendL3");
+
+const TH=$("#tblHistAll tbody"), HR=$("#histRange"), SR=$("#shiftRange"), CSV=$("#histCSV");
+
+const GP=$("#gridPos"), GR=$("#gridRack"), PSR=$("#posSearch"), RSR=$("#rackSearch");
 
 const MDV=$("#modalValidar"), FMV=$("#formValidar"), VRES=$("#valResumen"), VDET=$("#valDetalle"), VCH=$("#valChips"),
       VC=$("#valCodigo"), VPOS=$("#valPosicion"), VRK=$("#valRack"),
       BTN_SCAN_POS=$("#btnScanPos"), BTN_SCAN_RK=$("#btnScanRack"), BTN_SCAN_CODE=$("#btnScanVal");
 
-const MDA=$("#modalArranque"), FMA=$("#formArranque"), ADT=$("#arranqueDT"), AHR=$("#arranqueHoras");
+const MDA=$("#modalArranque"), FMA=$("#formArranque");
 const MDI=$("#modalInfo"), IB=$("#infoBody");
 const MDH=$("#modalHistInfo"), HIB=$("#histInfoBody");
 
@@ -97,31 +134,29 @@ FMV?.addEventListener("click",e=>{
   if(b.value==="cancel"){MDV.close(); curV=null;}
 });
 
-// ===== Arranque =====
+// ===== Arranque / Órdenes =====
 let curA=null;
 function oArr(r){
   curA=r;
   let d=new Date(),p=n=>String(n).padStart(2,"0");
-  ADT.value=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-  AHR.value=24;
-  MDA.showModal();
+  $("#arranqueDT").value=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  $("#arranqueHoras").value=24;
+  $("#modalArranque").showModal();
 }
-FMA?.addEventListener("click",e=>{
-  let b=e.target; if(!(b instanceof HTMLButtonElement))return;
+$("#formArranque")?.addEventListener("click",e=>{
+  const b=e.target; if(!(b instanceof HTMLButtonElement))return;
   if(b.value==="save"&&curA){
-    let t=ADT.value, h=parseInt(AHR.value,10);
-    if(!t) return alert("Indica fecha/hora de arranque.");
-    if(isNaN(h)||h<1) return alert("Horas de carga inválidas.");
-    let u=cur();
-    let st={...curA,arranque:{at:isoLocal(t),byId:u?.id||null,byName:u?.name||"Controlista"},carga:{ms:h*3600*1000,from:isoLocal(t)}};
-    let nx=J(K.ORD,[]); nx.push(st); S(K.ORD,nx);
+    const t=$("#arranqueDT").value, h=parseInt($("#arranqueHoras").value,10);
+    if(!t||isNaN(h)||h<1) return alert("Datos de arranque inválidos.");
+    const u=cur();
+    const st={...curA,arranque:{at:isoLocal(t),byId:u?.id||null,byName:u?.name||"Controlista"},carga:{ms:h*3600*1000,from:isoLocal(t)}};
+    const nx=J(K.ORD,[]); nx.push(st); S(K.ORD,nx);
     S(K.ARR,(J(K.ARR,[])||[]).filter(x=>(x.id||x._id)!==(curA.id||curA._id)));
-    MDA.close(); curA=null; render();
+    $("#modalArranque").close(); curA=null; render();
   }
-  if(b.value==="cancel"){MDA.close(); curA=null;}
+  if(b.value==="cancel"){ $("#modalArranque").close(); curA=null; }
 });
 
-// ===== Arranque / Órdenes =====
 function rArr(){
   TA.innerHTML="";
   let a=J(K.ARR,[]);
@@ -151,7 +186,7 @@ function rOrd(){
   });
 }
 
-// ===== Confirmación con barra animada =====
+// ===== Confirmación: barra restante =====
 let timers=[];
 function clearTimers(){timers.forEach(id=>clearInterval(id)); timers=[]}
 function makeRestanteCell(fromISO, msDur){
@@ -200,37 +235,122 @@ function rCon(){
   });
 }
 
-// ===== Producción =====
+// ===== Producción: selección múltiple + enviar a patineros =====
+const selectedIds = new Set();
+function updateSelBadge(){ if(SEL_COUNT) SEL_COUNT.textContent = `Seleccionados: ${selectedIds.size}`; }
+function sendSelected(linea){
+  if(selectedIds.size===0) { alert("Selecciona al menos un registro."); return; }
+  const ret = J(K.RET,{1:[],2:[],3:[],4:[]});
+  const hist = J(K.RETH,[]);
+  const left = [];
+
+  (PR||[]).forEach(r=>{
+    const id = r.id || r._id || r.creadoEn; // fallback
+    if(selectedIds.has(id)){
+      const item = {
+        id: id,
+        refId: id,
+        posicion: r.posicion,
+        rack: r.rack,
+        linea: linea,
+        operador: r.operador,
+        empleado: r.registradoPorId,
+        codigoSeco: r.codigoSeco,
+        cantidad: r.cantidad,
+        creadoEn: r.creadoEn,
+        registradoPorNombre: r.registradoPorNombre
+      };
+      (ret[linea]=ret[linea]||[]).push(item);
+      hist.push(item);
+    } else {
+      left.push(r);
+    }
+  });
+
+  S(K.RET, ret);
+  S(K.RETH, hist);
+  S(K.PROD, left);
+  selectedIds.clear(); CHK_ALL && (CHK_ALL.checked=false); updateSelBadge();
+  alert(`Enviados ${hist.length - left.length + PR.length - PR.length} registro(s) a Línea ${linea}.`);
+  render();
+}
+SEND1?.addEventListener('click', ()=> sendSelected(1));
+SEND2?.addEventListener('click', ()=> sendSelected(2));
+SEND3?.addEventListener('click', ()=> sendSelected(3));
+CHK_ALL?.addEventListener('change', ()=>{
+  const checks = $$('#tblProdAll tbody input[type="checkbox"][data-id]');
+  checks.forEach(c=>{ c.checked = CHK_ALL.checked; const id=c.getAttribute('data-id'); if(c.checked) selectedIds.add(id); else selectedIds.delete(id); });
+  updateSelBadge();
+});
+
 function total(){if(!PT)return; PT.textContent=`Total: ${(PR||[]).reduce((s,r)=>s+(isNaN(parseFloat(r?.cantidad))?0:parseFloat(r.cantidad)),0)}`}
 function rProd(){
-  TPA.innerHTML=""; if(!PR.length){TPA.innerHTML=`<tr><td colspan="8" style="text-align:center;opacity:.7">Sin registros</td></tr>`; total(); return}
+  TPA.innerHTML=""; PR=J(K.PROD,PR);
+  selectedIds.clear(); updateSelBadge(); if(CHK_ALL) CHK_ALL.checked=false;
+
+  if(!PR.length){
+    TPA.innerHTML=`<tr><td colspan="9" style="text-align:center;opacity:.7">Sin registros</td></tr>`;
+    total(); return;
+  }
+
   let g={};
   PR.forEach(r=>{let k=r.codigoSeco||"Sin código"; (g[k]=g[k]||[]).push(r)});
   Object.entries(g).forEach(([k,rs])=>{
-    let sep=document.createElement("tr"); sep.classList.add("tr-separator"); sep.innerHTML=`<td colspan="8">Código de seco: ${k}</td>`; TPA.appendChild(sep);
+    let sep=document.createElement("tr");
+    sep.classList.add("tr-separator");
+    sep.innerHTML=`<td colspan="9">Código de seco: ${k}</td>`;
+    TPA.appendChild(sep);
+
     rs.forEach(r=>{
-      let tr=document.createElement("tr"); tr.classList.add("clickable");
-      tr.innerHTML=`<td>${dt(r.creadoEn)}</td><td>${r.linea}</td><td>${r.operador??"—"}</td><td>${r.codigoSeco??"—"}</td><td>${r.cantidad??"—"}</td><td>${r.rack??"—"}</td><td>${r.posicion??"—"}</td><td>${r.validadoPorNombre??r.orden?.byName??"—"}</td>`;
-      tr.onclick=()=>{IB.innerHTML=`<dl>
-        <dt>Línea</dt><dd>${r.linea??"—"}</dd><dt>Operador</dt><dd>${r.operador??"—"}</dd>
-        <dt>Código seco</dt><dd>${r.codigoSeco??"—"}</dd><dt>Cantidad</dt><dd>${r.cantidad??"—"}</dd>
-        <dt>Rack</dt><dd>${r.rack??"—"}</dd><dt>Posición</dt><dd>${r.posicion??"—"}</dd>
-        <dt>Registrado por</dt><dd>${r.registradoPorNombre??"—"}</dd><dt>Creado</dt><dd>${dt(r.creadoEn)}</dd>
-        ${r.validadoPorNombre?`<dt>Validado por</dt><dd>${r.validadoPorNombre} (${dt(r.validadoEn)})</dd>`:""}
-        ${r.arranque?.byName?`<dt>Arranque</dt><dd>${r.arranque.byName} (${dt(r.arranque.at)})</dd>`:""}
-        ${r.orden?.byName?`<dt>Orden creada</dt><dd>${r.orden.byName} (${dt(r.orden.at)})</dd>`:""}
-        ${r.completado?.at?`<dt>Completado</dt><dd>${dt(r.completado.at)}</dd>`:""}
-      </dl>`; $("#modalInfo").showModal();};
+      const id = r.id || r._id || r.creadoEn || crypto.randomUUID();
+      r.id = id; // normalizamos
+
+      let tr=document.createElement("tr");
+      tr.innerHTML=`
+        <td><input type="checkbox" data-id="${id}"/></td>
+        <td>${dt(r.creadoEn)}</td>
+        <td>${r.linea}</td>
+        <td>${r.operador??"—"}</td>
+        <td>${r.codigoSeco??"—"}</td>
+        <td>${r.cantidad??"—"}</td>
+        <td>${r.rack??"—"}</td>
+        <td>${r.posicion??"—"}</td>
+        <td>${r.validadoPorNombre??r.orden?.byName??"—"}</td>
+      `;
+      // abrir detalle al hacer clic en celdas (no en checkbox)
+      tr.addEventListener("click", (ev)=>{
+        if(ev.target.matches('input[type="checkbox"]')) return;
+        IB.innerHTML=`<dl>
+          <dt>Línea</dt><dd>${r.linea??"—"}</dd><dt>Operador</dt><dd>${r.operador??"—"}</dd>
+          <dt>Código seco</dt><dd>${r.codigoSeco??"—"}</dd><dt>Cantidad</dt><dd>${r.cantidad??"—"}</dd>
+          <dt>Rack</dt><dd>${r.rack??"—"}</dd><dt>Posición</dt><dd>${r.posicion??"—"}</dd>
+          <dt>Registrado por</dt><dd>${r.registradoPorNombre??"—"}</dd><dt>Creado</dt><dd>${dt(r.creadoEn)}</dd>
+          ${r.validadoPorNombre?`<dt>Validado por</dt><dd>${r.validadoPorNombre} (${dt(r.validadoEn)})</dd>`:""}
+          ${r.arranque?.byName?`<dt>Arranque</dt><dd>${r.arranque.byName} (${dt(r.arranque.at)})</dd>`:""}
+          ${r.orden?.byName?`<dt>Orden creada</dt><dd>${r.orden.byName} (${dt(r.orden.at)})</dd>`:""}
+          ${r.completado?.at?`<dt>Completado</dt><dd>${dt(r.completado.at)}</dd>`:""}
+        </dl>`;
+        $("#modalInfo").showModal();
+      });
+
+      // seleccionar
+      const chk = tr.querySelector('input[type="checkbox"]');
+      chk.addEventListener('change', ()=>{
+        if(chk.checked) selectedIds.add(id); else selectedIds.delete(id);
+        updateSelBadge();
+      });
+
       TPA.appendChild(tr);
     });
   });
   total();
 }
 
-// ===== Catálogos =====
+// ===== Pos/Rack catálogos (render simple) =====
 function posSt(k){return PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible")}
 function rackSt(k){return RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible")}
 function rPos(q=""){
+  if(!GP) return;
   GP.innerHTML=""; q=(q||"").toLowerCase().trim();
   for(let i=1;i<=450;i++){
     let k="P"+pad(i); if(q && !k.toLowerCase().includes(q))continue;
@@ -240,18 +360,21 @@ function rPos(q=""){
   }
 }
 function rRack(q=""){
+  if(!GR) return;
   GR.innerHTML=""; q=(q||"").toLowerCase().trim();
   for(let i=1;i<=435;i++){
     let k="Rack"+pad(i); if(q && !k.toLowerCase().includes(q))continue;
     let st=rackSt(k), li=document.createElement("li");
     li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${st==='en_uso'?'state-busy':st==='mantenimiento'?'state-warn':'state-ok'}">${st==='en_uso'?'En uso':st==='mantenimiento'?'Mantenimiento':'Disponible'}</div>`;
+    // abrir modal de edición de rack
+    li.addEventListener('click', ()=> openRackEditor(k));
     GR.appendChild(li);
   }
 }
 PSR?.addEventListener("input",()=>rPos(PSR.value));
 RSR?.addEventListener("input",()=>rRack(RSR.value));
 
-// ===== Historial + CSV =====
+// ===== Historial + CSV (igual que antes) =====
 function enrich(x){
   if(!x) return x;
   let id=x.refId||x.id;
@@ -398,33 +521,24 @@ function renderPosOk(){
     L_POS.innerHTML=`<li style="grid-column:1/-1;text-align:center;opacity:.7">No hay posiciones disponibles</li>`;
   }
 }
-function renderStatus(){
-  renderSoon(); renderDone(); renderPre(); renderRacksOk(); renderPosOk();
-}
+function renderStatus(){ renderSoon(); renderDone(); renderPre(); renderRacksOk(); renderPosOk(); }
 
 // ===== HOME =====
 const KPI_ENT=$("#kpiEntradas"), KPI_SAL=$("#kpiSalidas"), KPI_RACK=$("#kpiRacksOk"), KPI_POS=$("#kpiPosOk");
 const TB_HOME=$("#tblHomeCodigos tbody");
-function isToday(ts){
-  if(!ts) return false;
-  const d=new Date(ts), n=new Date();
-  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
-}
+function isToday(ts){ if(!ts) return false; const d=new Date(ts), n=new Date(); return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();}
 function renderHome(){
   const allP = J(K.PEND,[]);
   const entradasHoy = (allP||[]).filter(r=>r && r.tipo!=="salida" && isToday(r.creadoEn));
   const totalEnt = entradasHoy.reduce((s,r)=>s+(parseFloat(r.cantidad)||0),0);
-
   const salidasHoy = (allP||[]).filter(r=>r && r.tipo==="salida" && isToday(r.salida?.at));
   const totalSal = salidasHoy.reduce((s,r)=>s+(parseFloat(r.cantidad)||0),0);
-
-  let racksOk=0; for(let i=1;i<=435;i++){ const k="Rack"+pad(i); if((RS?.[k]?.estado)|| (EU.racks?.[k]?"en_uso":"disponible")){ const st=RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible"); if(st==="disponible") racksOk++; } else racksOk++; }
-  let posOk=0; for(let i=1;i<=450;i++){ const k="P"+pad(i); if((PS?.[k]?.estado)|| (EU.posiciones?.[k]?"en_uso":"disponible")){ const st=PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible"); if(st==="disponible") posOk++; } else posOk++; }
-
-  if(KPI_ENT) KPI_ENT.textContent = totalEnt;
-  if(KPI_SAL) KPI_SAL.textContent = totalSal;
-  if(KPI_RACK) KPI_RACK.textContent = racksOk;
-  if(KPI_POS) KPI_POS.textContent = posOk;
+  let racksOk=0; for(let i=1;i<=435;i++){ const k="Rack"+pad(i); const st=RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible"); if(st==="disponible") racksOk++; }
+  let posOk=0; for(let i=1;i<=450;i++){ const k="P"+pad(i); const st=PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible"); if(st==="disponible") posOk++; }
+  KPI_ENT&& (KPI_ENT.textContent = totalEnt);
+  KPI_SAL&& (KPI_SAL.textContent = totalSal);
+  KPI_RACK&& (KPI_RACK.textContent = racksOk);
+  KPI_POS&& (KPI_POS.textContent = posOk);
 
   if(TB_HOME){
     TB_HOME.innerHTML="";
@@ -451,14 +565,75 @@ window.addEventListener("storage", e=>{
   if([K.PEND,K.USE,K.PSTAT,K.RSTAT].includes(e.key)) renderHome();
 });
 
-// ===== Render =====
+// ===== Modal de edición de Racks (observaciones + broadcast) =====
+const MRK=$("#modalRackEdit"), FRK=$("#formRackEdit"),
+      RK_TITLE=$("#rkEditTitle"), RK_EST=$("#rkEstadoSel"),
+      BTN_SOPORTE=$("#btnSoporteFalt"), RK_OBS=$("#rkObsText"),
+      RK_CLEAR=$("#rkBtnClear");
+let currentRackKey=null;
+
+function openRackEditor(key){
+  currentRackKey=key;
+  RK_TITLE.textContent=`Editar ${key}`;
+  RS=J(K.RSTAT,{});
+  const st=RS[key]||{};
+  RK_EST.value = st.estado || (EU.racks?.[key] ? "en_uso" : "disponible");
+  BTN_SOPORTE.classList.toggle("active", !!st.soporte_dren_faltante);
+  $$('[data-pm]').forEach(b=>{
+    const lvl=parseInt(b.getAttribute('data-pm'),10);
+    const on = Array.isArray(st.porta_manguera_falt) && st.porta_manguera_falt.includes(lvl);
+    b.classList.toggle('active', on);
+  });
+  $$('[data-tn]').forEach(b=>{
+    const lvl=parseInt(b.getAttribute('data-tn'),10);
+    const on = Array.isArray(st.tina_dan) && st.tina_dan.includes(lvl);
+    b.classList.toggle('active', on);
+  });
+  RK_OBS.value = st.obs || "";
+  MRK.showModal();
+}
+
+BTN_SOPORTE?.addEventListener("click", ()=> BTN_SOPORTE.classList.toggle("active"));
+$$('[data-pm]').forEach(b=> b.addEventListener('click', ()=> b.classList.toggle('active')));
+$$('[data-tn]').forEach(b=> b.addEventListener('click', ()=> b.classList.toggle('active')));
+
+RK_CLEAR?.addEventListener("click", ()=>{
+  RK_EST.value="disponible";
+  BTN_SOPORTE.classList.remove("active");
+  $$('[data-pm], [data-tn]').forEach(b=> b.classList.remove('active'));
+  RK_OBS.value="";
+});
+
+FRK?.addEventListener("click", (e)=>{
+  const btn=e.target; if(!(btn instanceof HTMLButtonElement)) return;
+  if(btn.value==="save" && currentRackKey){
+    const porta = $$('[data-pm].active').map(b=>parseInt(b.getAttribute('data-pm'),10)).sort((a,b)=>a-b);
+    const tina  = $$('[data-tn].active').map(b=>parseInt(b.getAttribute('data-tn'),10)).sort((a,b)=>a-b);
+    const obj={
+      ...(RS[currentRackKey]||{}),
+      estado: RK_EST.value,
+      soporte_dren_faltante: BTN_SOPORTE.classList.contains('active'),
+      porta_manguera_falt: porta,
+      tina_dan: tina,
+      obs: RK_OBS.value.trim()
+    };
+    RS[currentRackKey]=obj; S(K.RSTAT,RS);
+
+    RACKS_STATUS_CH.postMessage({ type:'rack-update', key: currentRackKey, data: obj });
+
+    MRK.close(); currentRackKey=null;
+    rRack(RSR?.value);
+  }
+  if(btn.value==="cancel"){ MRK.close(); currentRackKey=null; }
+});
+
+// ===== Render principal =====
 function render(){
   P=J(K.PEND,[]); A=J(K.ARR,[]); O=J(K.ORD,[]); C=J(K.CON,[]); PR=J(K.PROD,[]);
   PS=J(K.PSTAT,{}); RS=J(K.RSTAT,{}); EU=J(K.USE,{posiciones:{},racks:{}});
   rPend(); rArr(); rOrd(); rCon(); rProd(); rHist(); rPos(PSR?.value); rRack(RSR?.value);
   markActive();
-  if(location.hash==="#status") renderStatus();
-  if(location.hash==="#home") renderHome();
+  showOnly(location.hash || "#validar");
 }
 window.addEventListener("storage",e=>{
   if([K.USE,K.PSTAT,K.RSTAT,K.RET,K.RETH,K.PROD,K.PEND,K.ARR,K.ORD,K.CON].includes(e.key)) render()
