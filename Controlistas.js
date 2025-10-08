@@ -87,6 +87,122 @@ const MDA=$("#modalArranque"), FMA=$("#formArranque");
 const MDI=$("#modalInfo"), IB=$("#infoBody");
 const MDH=$("#modalHistInfo"), HIB=$("#histInfoBody");
 
+// ====== ESCÁNER (Quagga) ======
+const SCAN_MODAL = $("#scannerModal");
+const SCAN_STATUS = $("#scanStatus");
+const CAMERA_SELECT = $("#cameraSelect");
+const SCAN_VIEWPORT = $("#scannerViewport");
+let scanTargetInput = null;
+let quaggaRunning = false;
+
+function setScanStatus(txt, ok=false){
+  if(!SCAN_STATUS) return;
+  SCAN_STATUS.textContent = txt;
+  SCAN_STATUS.classList.toggle('scan-found', ok);
+}
+
+function listCameras(){
+  CAMERA_SELECT.innerHTML = "";
+  return navigator.mediaDevices.enumerateDevices().then(devs=>{
+    const vids = devs.filter(d=>d.kind==="videoinput");
+    vids.forEach((d,idx)=>{
+      const opt=document.createElement("option");
+      opt.value = d.deviceId || "";
+      opt.textContent = d.label || `Cámara ${idx+1}`;
+      CAMERA_SELECT.appendChild(opt);
+    });
+    return vids;
+  });
+}
+
+function quaggaConfig(deviceId){
+  return {
+    inputStream: {
+      type: "LiveStream",
+      target: SCAN_VIEWPORT,
+      constraints: {
+        facingMode: "environment",
+        ...(deviceId ? { deviceId } : {}),
+        width: { min: 640, ideal: 1280 },
+        height:{ min: 360, ideal: 720 }
+      }
+    },
+    locator: { patchSize: "medium", halfSample: true },
+    numOfWorkers: navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 2,
+    frequency: 10,
+    decoder: {
+      readers: [
+        "code_128_reader","code_39_reader","code_39_vin_reader",
+        "ean_reader","ean_8_reader","upc_reader","upc_e_reader",
+        "codabar_reader","i2of5_reader","2of5_reader","interleaved_2_of_5_reader"
+      ].map(r=>({format:r, config:{}}))
+    },
+    locate: true
+  };
+}
+
+function startScanner(deviceId){
+  if(!window.Quagga){ alert("No se pudo cargar el lector. Revisa tu red/CDN."); return; }
+  setScanStatus("Inicializando cámara…");
+  Quagga.init(quaggaConfig(deviceId), err=>{
+    if(err){ console.error(err); setScanStatus("Error al iniciar la cámara"); return; }
+    Quagga.start(); quaggaRunning = true;
+    setScanStatus("Listo. Enfoca el código de barras.");
+  });
+
+  Quagga.offDetected(); // limpiar handlers previos
+  Quagga.onDetected(res=>{
+    const code = res?.codeResult?.code || "";
+    if(code){
+      setScanStatus(`Detectado: ${code}`, true);
+      if(scanTargetInput){
+        scanTargetInput.value = code;
+        // pequeña pausa para que el usuario vea el valor
+        setTimeout(closeScanner, 250);
+      }
+    }
+  });
+}
+
+function stopScanner(){
+  try{
+    if(window.Quagga && quaggaRunning){ Quagga.stop(); quaggaRunning=false; }
+  }catch{}
+}
+
+function openScannerFor(inputEl){
+  scanTargetInput = inputEl;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    alert("Este navegador no permite acceso a la cámara.");
+    return;
+  }
+  SCAN_MODAL.showModal();
+  setScanStatus("Buscando cámaras…");
+  listCameras().then(vids=>{
+    if(!vids.length){ setScanStatus("No se encontraron cámaras"); return; }
+    const deviceId = CAMERA_SELECT.value || vids[0]?.deviceId || undefined;
+    startScanner(deviceId);
+  }).catch(()=> setScanStatus("No se pudo acceder a la cámara"));
+}
+function closeScanner(){
+  stopScanner();
+  scanTargetInput = null;
+  SCAN_MODAL.close();
+}
+CAMERA_SELECT?.addEventListener("change", ()=>{
+  if(!quaggaRunning) return;
+  stopScanner();
+  const id = CAMERA_SELECT.value || undefined;
+  startScanner(id);
+});
+$("#scanCloseBtn")?.addEventListener("click", (e)=>{ e.preventDefault(); closeScanner(); });
+SCAN_MODAL?.addEventListener("close", stopScanner);
+
+// Conectar botones de “Escanear”
+BTN_SCAN_POS?.addEventListener("click", ()=> openScannerFor(VPOS));
+BTN_SCAN_RK ?.addEventListener("click", ()=> openScannerFor(VRK));
+BTN_SCAN_CODE?.addEventListener("click", ()=> openScannerFor(VC));
+
 // ===== Validación =====
 function rPend(){
   let by={1:[],2:[],3:[],4:[]};
@@ -113,9 +229,6 @@ function oVal(r){
   VPOS.value=""; VRK.value=""; VC.value="";
   MDV.showModal();
 }
-BTN_SCAN_POS?.addEventListener("click",()=>{let v=prompt("Escanear Posición (simulado). Ej: P004"); if(v) VPOS.value=v.trim()});
-BTN_SCAN_RK ?.addEventListener("click",()=>{let v=prompt("Escanear Rack (simulado). Ej: Rack004"); if(v) VRK.value=v.trim()});
-BTN_SCAN_CODE?.addEventListener("click",()=>{let v=prompt("Escanear Código de seco (simulado)"); if(v) VC.value=v.trim()});
 FMV?.addEventListener("click",e=>{
   let b=e.target; if(!(b instanceof HTMLButtonElement))return;
   if(b.value==="save"&&curV){
@@ -271,7 +384,7 @@ function sendSelected(linea){
   S(K.RETH, hist);
   S(K.PROD, left);
   selectedIds.clear(); CHK_ALL && (CHK_ALL.checked=false); updateSelBadge();
-  alert(`Enviados ${hist.length - left.length + PR.length - PR.length} registro(s) a Línea ${linea}.`);
+  alert(`Registros enviados a Línea ${linea}.`);
   render();
 }
 SEND1?.addEventListener('click', ()=> sendSelected(1));
@@ -303,7 +416,7 @@ function rProd(){
 
     rs.forEach(r=>{
       const id = r.id || r._id || r.creadoEn || crypto.randomUUID();
-      r.id = id; // normalizamos
+      r.id = id;
 
       let tr=document.createElement("tr");
       tr.innerHTML=`
@@ -317,7 +430,6 @@ function rProd(){
         <td>${r.posicion??"—"}</td>
         <td>${r.validadoPorNombre??r.orden?.byName??"—"}</td>
       `;
-      // abrir detalle al hacer clic en celdas (no en checkbox)
       tr.addEventListener("click", (ev)=>{
         if(ev.target.matches('input[type="checkbox"]')) return;
         IB.innerHTML=`<dl>
@@ -333,7 +445,6 @@ function rProd(){
         $("#modalInfo").showModal();
       });
 
-      // seleccionar
       const chk = tr.querySelector('input[type="checkbox"]');
       chk.addEventListener('change', ()=>{
         if(chk.checked) selectedIds.add(id); else selectedIds.delete(id);
@@ -346,7 +457,7 @@ function rProd(){
   total();
 }
 
-// ===== Pos/Rack catálogos (render simple) =====
+// ===== Pos/Rack catálogos =====
 function posSt(k){return PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible")}
 function rackSt(k){return RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible")}
 function rPos(q=""){
@@ -366,7 +477,6 @@ function rRack(q=""){
     let k="Rack"+pad(i); if(q && !k.toLowerCase().includes(q))continue;
     let st=rackSt(k), li=document.createElement("li");
     li.innerHTML=`<div class="tile-title">${k}</div><div class="tile-state ${st==='en_uso'?'state-busy':st==='mantenimiento'?'state-warn':'state-ok'}">${st==='en_uso'?'En uso':st==='mantenimiento'?'Mantenimiento':'Disponible'}</div>`;
-    // abrir modal de edición de rack
     li.addEventListener('click', ()=> openRackEditor(k));
     GR.appendChild(li);
   }
@@ -374,7 +484,7 @@ function rRack(q=""){
 PSR?.addEventListener("input",()=>rPos(PSR.value));
 RSR?.addEventListener("input",()=>rRack(RSR.value));
 
-// ===== Historial + CSV (igual que antes) =====
+// ===== Historial + CSV =====
 function enrich(x){
   if(!x) return x;
   let id=x.refId||x.id;
