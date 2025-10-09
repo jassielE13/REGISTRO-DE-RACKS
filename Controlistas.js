@@ -65,70 +65,220 @@ const MDH=$("#modalHistInfo"), HIB=$("#histInfoBody");
   radios.forEach(r=>r.addEventListener("change",sync)); sync();
 })();
 
-// ====== lector de códigos (Quagga) sin selector de cámara ======
-const QUAGGA_SRCS=[
+// ====== lector de códigos (Quagga) sin selector de cámara (mejorado) ======
+const QUAGGA_SRCS = [
+  // quagga2 (mantenido)
+  "https://cdn.jsdelivr.net/npm/@ericblade/quagga2@2.0.3/dist/quagga.min.js",
+  "https://unpkg.com/@ericblade/quagga2@2.0.3/dist/quagga.min.js",
+  // quagga legacy (fallback)
   "https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js",
   "https://unpkg.com/quagga@0.12.1/dist/quagga.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js",
-  "./quagga.min.js" // opcional: súbelo a tu repo para fallback local
+  // opcional: súbelo a tu repo
+  "./quagga.min.js"
 ];
-function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src; s.async=true; s.onload=()=>res(); s.onerror=()=>rej(); document.head.appendChild(s);});}
+
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.async=true;s.onload=()=>res();s.onerror=()=>rej();document.head.appendChild(s);});}
 async function ensureQuagga(setStatus){
-  if(window.Quagga) return true;
+  if (window.Quagga) return true;
   setStatus?.("Cargando lector…");
-  for(const src of QUAGGA_SRCS){
-    try{ await loadScript(src); if(window.Quagga){setStatus?.("Lector listo."); return true;} }catch(e){}
+  for (const src of QUAGGA_SRCS){
+    try{ await loadScript(src); if(window.Quagga){ setStatus?.("Lector listo."); return true; } }catch(e){}
   }
-  setStatus?.("No se pudo cargar el lector. Verifica tu red.");
+  setStatus?.("No se pudo cargar el lector.");
   return false;
 }
-const SCAN_MODAL=$("#scannerModal"), SCAN_STATUS=$("#scanStatus"), SCAN_VIEWPORT=$("#scannerViewport");
-let quaggaRunning=false, scanTargetInput=null;
-function setScanStatus(txt, ok=false){ if(!SCAN_STATUS) return; SCAN_STATUS.textContent=txt; SCAN_STATUS.classList.toggle("scan-found", ok); }
+
+const SCAN_MODAL = $("#scannerModal"),
+      SCAN_STATUS = $("#scanStatus"),
+      SCAN_VIEWPORT = $("#scannerViewport");
+let quaggaRunning = false, scanTargetInput = null;
+
+// helpers UI
+function setScanStatus(txt, ok=false){ if(!SCAN_STATUS) return; SCAN_STATUS.textContent = txt; SCAN_STATUS.classList.toggle("scan-found", ok); }
+
+// prepara cámara (autofocus/linterna si hay)
+let currentStreamTrack = null;
+async function prepareCameraTrack(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 }, height: { ideal: 1080 }
+      },
+      audio: false
+    });
+    const track = stream.getVideoTracks()[0];
+    currentStreamTrack = track;
+
+    // Autofocus si soporta
+    const caps = track.getCapabilities?.() || {};
+    const cons = track.getConstraints?.() || {};
+    const settings = track.getSettings?.() || {};
+
+    if (caps.focusMode && caps.focusMode.includes("continuous")) {
+      await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+    }
+    // Guardamos para torcha más tarde
+    SCAN_MODAL.dataset.torchCap = caps.torch ? "1" : "";
+
+    // No dejamos colgado el stream: lo usa Quagga; si Quagga abre otro,
+    // este track se detendrá al cerrar el modal.
+    return true;
+  }catch(err){
+    console.warn("getUserMedia error:", err);
+    return false;
+  }
+}
+
+// torch ON/OFF si está disponible
+async function setTorch(on){
+  try{
+    if (!currentStreamTrack) return;
+    const caps = currentStreamTrack.getCapabilities?.() || {};
+    if (!caps.torch) return;
+    await currentStreamTrack.applyConstraints({ advanced: [{ torch: !!on }] });
+  }catch{}
+}
+
 function quaggaConfig(){
   return {
-    inputStream:{ type:"LiveStream", target:SCAN_VIEWPORT,
-      constraints:{ facingMode:"environment", width:{ideal:1280}, height:{ideal:720} } },
-    locator:{ patchSize:"medium", halfSample:true },
-    numOfWorkers: navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency):2,
-    frequency: 10,
-    decoder:{ readers:[
-      "code_128_reader","code_39_reader","code_39_vin_reader","ean_reader","ean_8_reader",
-      "upc_reader","upc_e_reader","codabar_reader","i2of5_reader","2of5_reader","interleaved_2_of_5_reader"
-    ].map(r=>({format:r,config:{}}))},
-    locate:true
+    inputStream: {
+      type: "LiveStream",
+      target: SCAN_VIEWPORT,
+      constraints: {
+        facingMode: "environment",
+        width: { ideal: 1920 }, height: { ideal: 1080 }
+      },
+      // Área de interés (más estable)
+      area: { top: "15%", right: "10%", left: "10%", bottom: "15%" }
+    },
+    locator: { patchSize: "large", halfSample: false },
+    locate: true,
+    numOfWorkers: navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 2,
+    frequency: 30,
+    decoder: {
+      readers: [
+        "code_128_reader",
+        "ean_reader", "ean_8_reader",
+        "code_39_reader",
+        "upc_reader", "upc_e_reader",
+        "codabar_reader",
+        "i2of5_reader", "interleaved_2_of_5_reader"
+      ]
+    }
   };
 }
-function startScanner(){
-  setScanStatus("Inicializando cámara…");
-  window.Quagga.init(quaggaConfig(), err=>{
-    if(err){ console.error(err); setScanStatus("Error al iniciar la cámara."); return; }
-    window.Quagga.start(); quaggaRunning=true;
-    setScanStatus("Listo. Enfoca el código de barras.");
-  });
-  window.Quagga.offDetected();
-  window.Quagga.onDetected(res=>{
-    const code=res?.codeResult?.code||"";
-    if(code){
-      setScanStatus(`Detectado: ${code}`, true);
-      if(scanTargetInput){ scanTargetInput.value=code; setTimeout(closeScanner, 220); }
+
+let sameCount = 0, lastCode = "";
+function resetDecision(){ sameCount = 0; lastCode = ""; }
+
+// dibuja overlay de depuración
+function attachProcessingOverlay(){
+  // Limpia manejadores anteriores
+  window.Quagga.offProcessed && window.Quagga.offProcessed();
+
+  window.Quagga.onProcessed(result => {
+    const ctx = window.Quagga.canvas.ctx.overlay;
+    const canvas = window.Quagga.canvas.dom.overlay;
+    if (!ctx || !canvas) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (result) {
+      if (result.boxes) {
+        result.boxes.filter(b => b !== result.box).forEach(box => {
+          window.Quagga.ImageDebug.drawPath(box, { x: 0, y: 1 }, ctx, { color: "rgba(255,255,255,.3)", lineWidth: 2 });
+        });
+      }
+      if (result.box) {
+        window.Quagga.ImageDebug.drawPath(result.box, { x: 0, y: 1 }, ctx, { color: "rgba(0,200,255,.6)", lineWidth: 3 });
+      }
+      if (result.codeResult && result.codeResult.code) {
+        const code = result.codeResult.code;
+        ctx.font = "18px sans-serif";
+        ctx.fillStyle = "rgba(0,0,0,.6)";
+        ctx.fillRect(0, 0, canvas.width, 30);
+        ctx.fillStyle = "#0ff";
+        ctx.fillText(code, 10, 22);
+      }
     }
   });
 }
-function stopScanner(){ try{ if(window.Quagga && quaggaRunning){ window.Quagga.stop(); quaggaRunning=false; } }catch{} }
+
+function startScanner(){
+  setScanStatus("Inicializando cámara…");
+  window.Quagga.init(quaggaConfig(), err => {
+    if (err) {
+      console.error(err);
+      setScanStatus("Error al iniciar cámara.");
+      return;
+    }
+    attachProcessingOverlay();
+    window.Quagga.start();
+    quaggaRunning = true;
+    setScanStatus("Enfoca el código dentro del recuadro.");
+  });
+
+  resetDecision();
+  window.Quagga.offDetected && window.Quagga.offDetected();
+  window.Quagga.onDetected(res => {
+    const code = res?.codeResult?.code || "";
+    if (!code) return;
+
+    if (code === lastCode) sameCount++;
+    else { lastCode = code; sameCount = 1; }
+
+    // aceptamos cuando aparece 2 frames seguidos
+    if (sameCount >= 2) {
+      setScanStatus(`Detectado: ${code}`, true);
+      if (scanTargetInput) {
+        scanTargetInput.value = code;
+        setTimeout(closeScanner, 180);
+      }
+      resetDecision();
+    }
+  });
+}
+
+function stopScanner(){
+  try { if (window.Quagga && quaggaRunning) { window.Quagga.stop(); quaggaRunning = false; } } catch {}
+  try { if (currentStreamTrack) { currentStreamTrack.stop(); currentStreamTrack = null; } } catch {}
+  // apaga linterna
+  setTorch(false).catch(()=>{});
+}
+
 function openScannerFor(inputEl){
-  scanTargetInput=inputEl;
-  if(!navigator.mediaDevices?.getUserMedia){ setScanStatus("La cámara no está disponible en este navegador."); SCAN_MODAL.showModal(); return; }
+  scanTargetInput = inputEl;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setScanStatus("La cámara no está disponible en este navegador.");
+    SCAN_MODAL.showModal();
+    return;
+  }
   SCAN_MODAL.showModal();
-  (async ()=>{
-    const ok=await ensureQuagga(setScanStatus);
-    if(!ok) return;
-    try{ await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}); }catch(e){ setScanStatus("Permiso de cámara denegado."); return; }
+
+  (async () => {
+    const okLib = await ensureQuagga(setScanStatus);
+    if (!okLib) return;
+
+    // Pedimos cámara primero (para permisos y autofocus/torch)
+    const okCam = await prepareCameraTrack();
+    if (!okCam) { setScanStatus("Permiso de cámara denegado."); return; }
+
+    // Linterna automática ON en ambientes oscuros (si hay)
+    setTimeout(()=> setTorch(true), 150);
+
+    // Ahora sí, arrancamos Quagga
     startScanner();
   })();
 }
-function closeScanner(){ stopScanner(); scanTargetInput=null; SCAN_MODAL.close(); }
-$("#scanCloseBtn")?.addEventListener("click", e=>{ e.preventDefault(); closeScanner(); });
+
+function closeScanner(){
+  stopScanner();
+  scanTargetInput = null;
+  SCAN_MODAL.close();
+}
+
+$("#scanCloseBtn")?.addEventListener("click", e => { e.preventDefault(); closeScanner(); });
 SCAN_MODAL?.addEventListener("close", stopScanner);
 
 // Botones “Escanear”
@@ -536,3 +686,4 @@ window.addEventListener("storage",e=>{
 });
 render();
 showOnly(location.hash||"#validar");
+
