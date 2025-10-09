@@ -637,7 +637,6 @@ window.addEventListener("storage",e=>{
 });
 render();
 
-
 // =============================================================
 // ==============  NUEVO: Barcode Scanner (Quagga)  ===========
 // =============================================================
@@ -650,39 +649,93 @@ render();
 
   let targetInput = null;
   let running = false;
+  let stopTimer = null;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  function cleanupOverlay(){
+    // Limpia overlays previos
+    const ov = viewport.querySelector('.drawingBuffer');
+    if (ov) ov.remove();
+  }
 
   function stopScanner(){
+    if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
     if (!running) return;
-    try { Quagga.stop(); } catch {}
+    try { Quagga.offDetected(onDetected); Quagga.offProcessed(onProcessed); Quagga.stop(); } catch {}
     running = false;
     targetInput = null;
+    cleanupOverlay();
     if (dlg?.open) dlg.close();
+  }
+
+  async function getBackCameraId(){
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const vids = devices.filter(d => d.kind === 'videoinput');
+      // Buscar “back” o “rear”
+      const back = vids.find(v => /back|rear|environment/i.test(v.label));
+      return (back || vids[vids.length-1] || vids[0])?.deviceId || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function ensureVisible(el){
+    // Asegura que el modal está pintado con tamaño real antes de init
+    return new Promise(res => {
+      requestAnimationFrame(()=> {
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) res();
+        else setTimeout(res, 80);
+      });
+    });
   }
 
   async function startScannerFor(inputEl){
     targetInput = inputEl;
     if (!dlg) return alert("No se encontró el modal del escáner.");
     dlg.showModal();
+    await ensureVisible(viewport);
+    cleanupOverlay();
+
+    // Forzar cámara trasera si es posible
+    const devId = await getBackCameraId();
+
+    const baseConstraints = {
+      facingMode: devId ? undefined : "environment",
+      deviceId: devId ? { exact: devId } : undefined,
+      // subir resolución ayuda al foco/decodificación
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      // Algunos navegadores aceptan focusMode continuo
+      advanced: [{ focusMode: "continuous" }]
+    };
 
     const config = {
       inputStream : {
         type : "LiveStream",
         target: viewport,
-        constraints: {
-          facingMode: "environment",
+        constraints: baseConstraints,
+        area: {                // escanear el centro, mejora la lectura
+          top: "20%",          // margen superior
+          right: "20%",
+          left: "20%",
+          bottom: "20%"
         }
       },
-      locator: { patchSize: "medium", halfSample: true },
-      numOfWorkers: navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 2,
-      frequency: 10,
+      locator: { patchSize: "large", halfSample: true },
+      numOfWorkers: isIOS ? 0 : (navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 2),
+      frequency: 8,
       decoder : {
         readers: [
           "code_128_reader",
           "ean_reader",
           "ean_8_reader",
-          "code_39_reader",
           "upc_reader",
           "upc_e_reader",
+          "code_39_reader",
           "codabar_reader",
           "i2of5_reader",
           "code_39_vin_reader"
@@ -691,27 +744,49 @@ render();
       locate: true
     };
 
-    Quagga.offDetected();
+    Quagga.offDetected(onDetected);
+    Quagga.offProcessed(onProcessed);
     Quagga.onDetected(onDetected);
+    Quagga.onProcessed(onProcessed);
 
     try {
       await Quagga.init(config);
       Quagga.start();
       running = true;
+
+      // Fallback: si no detecta nada en 15s, ofrece captura manual
+      stopTimer = setTimeout(()=>{
+        if (!running) return;
+        if (confirm("No pude leer el código. ¿Quieres capturarlo manualmente?")) {
+          stopScanner();
+          setTimeout(()=> targetInput && targetInput.focus(), 60);
+        }
+      }, 15000);
+
     } catch (err) {
       console.error("Quagga init error:", err);
-      alert("No se pudo iniciar la cámara. Verifica permisos del navegador.");
+      alert("No se pudo iniciar la cámara. Usa http://localhost o HTTPS y permite el acceso.");
       stopScanner();
     }
+  }
+
+  // Dibuja cajas/contornos (útil para confirmar que está detectando algo)
+  function onProcessed(result){
+    // Quagga añade un canvas con class drawingBuffer; ya lo deja visible por defecto.
+    // Aquí podríamos dibujar cajas si quisiéramos personalizar, pero Quagga ya lo hace.
   }
 
   let lastCode = null, lastAt = 0;
   function onDetected(result){
     if (!result || !result.codeResult || !result.codeResult.code) return;
     const code = String(result.codeResult.code || "").trim();
-    const now = Date.now();
+    const conf = (result.codeResult.decodedCodes || [])
+                  .filter(c => c && typeof c.error !== 'undefined')
+                  .reduce((acc, c) => acc + (1 - c.error), 0) / Math.max(1, (result.codeResult.decodedCodes || []).length);
 
-    if (code === lastCode && (now - lastAt) < 1200) return;
+    const now = Date.now();
+    // Debounce + umbral de "confianza" simple
+    if ((code === lastCode && (now - lastAt) < 1200) || conf < 0.3) return;
     lastCode = code; lastAt = now;
 
     if (targetInput) {
@@ -725,11 +800,18 @@ render();
   btnCancel?.addEventListener('click', () => stopScanner());
   dlg?.addEventListener('close', () => stopScanner());
 
+  // Intercepta los botones existentes para abrir el escáner (sin romper tu lógica)
   function bindScan(btn, input){
     if (!btn || !input) return;
     btn.addEventListener('click', function(e){
       e.preventDefault();
       if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+      // Si el navegador no soporta cámara, salimos a captura manual
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Tu navegador no permite usar la cámara aquí. Captura manualmente.");
+        input.focus();
+        return;
+      }
       startScannerFor(input);
     }, { capture: true });
   }
@@ -746,10 +828,10 @@ render();
   bindScan(BTN_SCAN_RK,  IN_RK);
   bindScan(BTN_SCAN_VAL, IN_COD);
 
+  // Si cambias IDs más adelante:
   window.rebindBarcodeButtons = () => {
     bindScan(document.getElementById('btnScanPos'), document.getElementById('valPosicion'));
     bindScan(document.getElementById('btnScanRack'), document.getElementById('valRack'));
     bindScan(document.getElementById('btnScanVal'),  document.getElementById('valCodigo'));
   };
-
 })();
