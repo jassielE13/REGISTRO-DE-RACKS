@@ -5,29 +5,25 @@
   <title>Controlistas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="Controlistas.css" />
-
-  <!-- Ajuste de hash por defecto -->
   <script>
     if (!location.hash) location.replace(location.pathname + '#validar');
   </script>
 
-  <!-- Estilos mínimos para el modal de escaneo (no tocan tu tema) -->
   <style>
+    /* Sólo estilos mínimos del modal de escaneo */
     .scanner-modal .modal-content{width:min(96vw,820px)}
     .scanner-wrap{position:relative; background:#111; border-radius:12px; overflow:hidden}
     #scannerViewport{position:relative; min-height:260px}
     #scannerViewport video, #scannerViewport canvas { width:100%; height:auto; }
+    #scannerViewport video{object-fit:cover}
     .scan-overlay{
       position:absolute; inset:0; border:2px dashed rgba(0,255,170,.5); border-radius:10px;
       margin:12px; pointer-events:none;
     }
-    .scan-hud{display:flex; gap:.5rem; align-items:center; justify-content:space-between; margin:.5rem 0}
-    .scan-status{font-size:.9rem; opacity:.85}
+    .scan-hud{display:flex; gap:.5rem; align-items:center; justify-content:flex-end; margin:.5rem 0}
+    .scan-status{font-size:.9rem; opacity:.9}
     .scan-found{font-weight:700}
   </style>
-
-  <!-- QuaggaJS para lectura de códigos de barras -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js" integrity="sha512-xn8b8d8bQ3f6W0ZpQvUtlwDkpk9kQqE2ZzOqY1qxbVv+qQK0rS4aF0J8G0K8Q3nQy2lBDJmJv5t9XzK4wTi6xA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <!-- TOPBAR -->
@@ -81,7 +77,7 @@
       </div>
     </section>
 
-    <!-- VALIDAR -->
+    <!-- VALIDACIÓN -->
     <section id="validar" class="panel">
       <header class="panel-header"><h2>Validación de Módulos</h2></header>
 
@@ -133,7 +129,7 @@
       </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- ÓRDENES -->
+    <!-- ORDENES -->
     <section id="ordenes" class="panel" hidden>
       <header class="panel-header"><h2>Órdenes por crear</h2></header>
       <table class="table" id="tblOrdenes"><thead><tr>
@@ -268,7 +264,7 @@
     </section>
   </main>
 
-  <!-- ===== MODALES YA EXISTENTES (Validar/Arranque/Info/Hist) – sin cambios estructurales ===== -->
+  <!-- Modal Validar -->
   <dialog id="modalValidar" class="modal">
     <form method="dialog" class="modal-content" id="formValidar">
       <h3>Validar módulo</h3>
@@ -308,6 +304,7 @@
     </form>
   </dialog>
 
+  <!-- Arranque -->
   <dialog id="modalArranque" class="modal">
     <form method="dialog" class="modal-content" id="formArranque">
       <h3>Configurar arranque</h3>
@@ -322,6 +319,7 @@
     </form>
   </dialog>
 
+  <!-- Info registro -->
   <dialog id="modalInfo" class="modal">
     <form method="dialog" class="modal-content">
       <h3>Detalle del registro</h3>
@@ -330,6 +328,7 @@
     </form>
   </dialog>
 
+  <!-- Info Historial -->
   <dialog id="modalHistInfo" class="modal">
     <form method="dialog" class="modal-content">
       <h3>Detalle completo</h3>
@@ -338,7 +337,7 @@
     </form>
   </dialog>
 
-  <!-- Modal de edición de Racks (observaciones) -->
+  <!-- Editar Rack -->
   <dialog id="modalRackEdit" class="modal">
     <form method="dialog" class="modal-content" id="formRackEdit">
       <h3 id="rkEditTitle">Editar Rack</h3>
@@ -392,24 +391,19 @@
     </form>
   </dialog>
 
-  <!-- ========= NUEVO: Modal de ESCÁNER ========= -->
+  <!-- ESCÁNER (sin selector de cámara) -->
   <dialog id="scannerModal" class="modal scanner-modal">
     <form method="dialog" class="modal-content">
       <h3>Escanear código de barras</h3>
-
       <div class="scan-hud">
-        <select id="cameraSelect" class="search"></select>
         <span class="scan-status" id="scanStatus">Inicializando cámara…</span>
       </div>
-
       <div class="scanner-wrap">
         <div id="scannerViewport">
           <div class="scan-overlay"></div>
         </div>
       </div>
-
       <p class="hint" style="margin:.5rem 0 0">Apunta el código dentro del recuadro. Se completará automáticamente.</p>
-
       <div class="actions end" style="margin-top:.75rem">
         <button class="secondary" value="cancel" id="scanCloseBtn">Cerrar</button>
       </div>
