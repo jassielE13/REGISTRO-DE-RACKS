@@ -8,22 +8,6 @@
   <script>
     if (!location.hash) location.replace(location.pathname + '#validar');
   </script>
-
-  <style>
-    /* Sólo estilos mínimos del modal de escaneo */
-    .scanner-modal .modal-content{width:min(96vw,820px)}
-    .scanner-wrap{position:relative; background:#111; border-radius:12px; overflow:hidden}
-    #scannerViewport{position:relative; min-height:260px}
-    #scannerViewport video, #scannerViewport canvas { width:100%; height:auto; }
-    #scannerViewport video{object-fit:cover}
-    .scan-overlay{
-      position:absolute; inset:0; border:2px dashed rgba(0,255,170,.5); border-radius:10px;
-      margin:12px; pointer-events:none;
-    }
-    .scan-hud{display:flex; gap:.5rem; align-items:center; justify-content:flex-end; margin:.5rem 0}
-    .scan-status{font-size:.9rem; opacity:.9}
-    .scan-found{font-weight:700}
-  </style>
 </head>
 <body>
   <!-- TOPBAR -->
@@ -77,7 +61,7 @@
       </div>
     </section>
 
-    <!-- VALIDACIÓN -->
+    <!-- VALIDAR -->
     <section id="validar" class="panel">
       <header class="panel-header"><h2>Validación de Módulos</h2></header>
 
@@ -116,7 +100,7 @@
       </div>
 
       <p class="hint">
-        El controlista captura <strong>Posición</strong>, <strong>Rack</strong> y <strong>Código de seco</strong> (con opción de <strong>escanear código de barras</strong>).
+        El controlista captura <strong>Posición</strong>, <strong>Rack</strong> y <strong>Código de seco</strong> (con opción de escanear).
       </p>
     </section>
 
@@ -129,7 +113,7 @@
       </tr></thead><tbody></tbody></table>
     </section>
 
-    <!-- ORDENES -->
+    <!-- ÓRDENES -->
     <section id="ordenes" class="panel" hidden>
       <header class="panel-header"><h2>Órdenes por crear</h2></header>
       <table class="table" id="tblOrdenes"><thead><tr>
@@ -264,7 +248,8 @@
     </section>
   </main>
 
-  <!-- Modal Validar -->
+  <!-- ===== MODALES EXISTENTES (Validar, Arranque, Info, Historial, Rack Edit) ===== -->
+  <!-- (Se mantienen igual que la última versión que te compartí) -->
   <dialog id="modalValidar" class="modal">
     <form method="dialog" class="modal-content" id="formValidar">
       <h3>Validar módulo</h3>
@@ -292,8 +277,8 @@
       <label class="field" style="margin-top:.5rem">
         <span>Código de seco (escriba o escanee)</span>
         <div class="with-actions">
-          <input id="valCodigo" type="text" placeholder="Ej. 1522761 / G-65-880" required />
-          <button type="button" class="ghost" id="btnScanVal">Escanear</button>
+          <input id="valCodigo" type="text" placeholder="Ej. G-65-880" required />
+          <button type="button" class="ghost" id="btnScanVal">Escanear QR</button>
         </div>
       </label>
 
@@ -304,7 +289,6 @@
     </form>
   </dialog>
 
-  <!-- Arranque -->
   <dialog id="modalArranque" class="modal">
     <form method="dialog" class="modal-content" id="formArranque">
       <h3>Configurar arranque</h3>
@@ -319,7 +303,6 @@
     </form>
   </dialog>
 
-  <!-- Info registro -->
   <dialog id="modalInfo" class="modal">
     <form method="dialog" class="modal-content">
       <h3>Detalle del registro</h3>
@@ -328,7 +311,6 @@
     </form>
   </dialog>
 
-  <!-- Info Historial -->
   <dialog id="modalHistInfo" class="modal">
     <form method="dialog" class="modal-content">
       <h3>Detalle completo</h3>
@@ -337,7 +319,6 @@
     </form>
   </dialog>
 
-  <!-- Editar Rack -->
   <dialog id="modalRackEdit" class="modal">
     <form method="dialog" class="modal-content" id="formRackEdit">
       <h3 id="rkEditTitle">Editar Rack</h3>
@@ -391,24 +372,22 @@
     </form>
   </dialog>
 
-  <!-- ESCÁNER (sin selector de cámara) -->
-  <dialog id="scannerModal" class="modal scanner-modal">
-    <form method="dialog" class="modal-content">
+  <!-- ===== NUEVO: Modal lector de CÓDIGO DE BARRAS (QuaggaJS) ===== -->
+  <dialog id="scannerModal" class="modal">
+    <form method="dialog" class="modal-content" style="max-width:860px">
       <h3>Escanear código de barras</h3>
-      <div class="scan-hud">
-        <span class="scan-status" id="scanStatus">Inicializando cámara…</span>
+      <div id="scannerViewport" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden;">
+        <!-- Quagga inyecta el stream de video aquí -->
       </div>
-      <div class="scanner-wrap">
-        <div id="scannerViewport">
-          <div class="scan-overlay"></div>
-        </div>
+      <div style="display:flex; gap:.5rem; justify-content:flex-end; margin-top:.75rem;">
+        <button class="secondary" value="close" id="scannerCancel">Cancelar</button>
       </div>
-      <p class="hint" style="margin:.5rem 0 0">Apunta el código dentro del recuadro. Se completará automáticamente.</p>
-      <div class="actions end" style="margin-top:.75rem">
-        <button class="secondary" value="cancel" id="scanCloseBtn">Cerrar</button>
-      </div>
+      <p class="hint" style="margin-top:.5rem">Apunta la cámara al código. Soporta Code128, EAN/UPC, Code39, ITF, Codabar, etc.</p>
     </form>
   </dialog>
+
+  <!-- Librería para leer CÓDIGOS DE BARRAS (no QR) -->
+  <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
   <script src="Controlistas.js"></script>
 
@@ -418,11 +397,12 @@
       const links = Array.from(document.querySelectorAll('.sidenav a'));
       function markSideActive(){
         const h = (location.hash || '#validar').toLowerCase();
-        links.forEach(a => a.classList.toggle("active", a.getAttribute("href").toLowerCase() === h));
+        links.forEach(a => a.classList.toggle('active', a.getAttribute('href').toLowerCase() === h));
       }
-      window.addEventListener("hashchange", markSideActive);
+      window.addEventListener('hashchange', markSideActive);
       markSideActive();
     })();
   </script>
 </body>
 </html>
+
