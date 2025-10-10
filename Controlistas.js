@@ -113,25 +113,71 @@ function oVal(r){
   VPOS.value=""; VRK.value=""; VC.value="";
   MDV.showModal();
 }
+// (Estos listeners se sobre-escriben por el escáner real al final, pero se dejan como fallback)
 BTN_SCAN_POS?.addEventListener("click",()=>{let v=prompt("Escanear Posición (simulado). Ej: P004"); if(v) VPOS.value=v.trim()});
 BTN_SCAN_RK ?.addEventListener("click",()=>{let v=prompt("Escanear Rack (simulado). Ej: Rack004"); if(v) VRK.value=v.trim()});
 BTN_SCAN_CODE?.addEventListener("click",()=>{let v=prompt("Escanear Código de seco (simulado)"); if(v) VC.value=v.trim()});
-FMV?.addEventListener("click",e=>{
-  let b=e.target; if(!(b instanceof HTMLButtonElement))return;
-  if(b.value==="save"&&curV){
-    let pos=VPOS.value.trim(), rk=VRK.value.trim(), cod=VC.value.trim();
-    if(!pos) return alert("Captura la Posición.");
-    if(!rk)  return alert("Captura el Rack.");
-    if(!cod) return alert("Captura o escanea el Código de seco.");
-    if(curV.codigoSeco && cod!==curV.codigoSeco && !confirm("No coincide el código. ¿Continuar?")) return;
 
-    let u=cur();
-    let v={...curV,posicion:pos,rack:rk,codigoSeco:cod,validadoEn:now(),validadoPorId:u?.id||null,validadoPorNombre:u?.name||"Controlista"};
-    let arr=J(K.ARR,[]); arr.push(v); S(K.ARR,arr);
-    P=P.filter(x=>x.id!==curV.id); S(K.PEND,P);
-    MDV.close(); curV=null; render();
+// === LISTENER DE VALIDACIÓN (ARREGLADO: COINCIDENCIA ESTRICTA) ===
+FMV?.addEventListener("click", e=>{
+  const b = e.target;
+  if (!(b instanceof HTMLButtonElement)) return;
+
+  if (b.value === "save" && curV) {
+    const pos = VPOS.value.trim().toUpperCase();
+    const rk  = VRK.value.trim().toUpperCase();
+    const cod = VC.value.trim();
+
+    if (!pos) return alert("Captura la Posición.");
+    if (!rk)  return alert("Captura el Rack.");
+    if (!cod) return alert("Captura o escanea el Código de seco.");
+
+    const regPos = (curV.posicion || "").toUpperCase();
+    const regRk  = (curV.rack || "").toUpperCase();
+    const regCod = curV.codigoSeco || "";
+
+    if (regPos && pos !== regPos) {
+      alert(`La POSICIÓN no coincide con el registro.\nEsperado: ${regPos}\nIngresado: ${pos}`);
+      return;
+    }
+    if (regRk && rk !== regRk) {
+      alert(`El RACK no coincide con el registro.\nEsperado: ${regRk}\nIngresado: ${rk}`);
+      return;
+    }
+    if (regCod && cod !== regCod) {
+      alert(`El CÓDIGO DE SECO no coincide con el registro.\nEsperado: ${regCod}\nIngresado: ${cod}`);
+      return;
+    }
+
+    const u = cur();
+    const validado = {
+      ...curV,
+      posicion: regPos || pos, // si venía vacío, toma el nuevo
+      rack:     regRk  || rk,
+      codigoSeco: regCod || cod,
+      validadoEn: now(),
+      validadoPorId: u?.id || null,
+      validadoPorNombre: u?.name || "Controlista"
+    };
+
+    // Mover a "Arranque"
+    const arr = J(K.ARR, []);
+    arr.push(validado);
+    S(K.ARR, arr);
+
+    // Sacar de Pendientes
+    P = P.filter(x => x.id !== curV.id);
+    S(K.PEND, P);
+
+    MDV.close();
+    curV = null;
+    render();
   }
-  if(b.value==="cancel"){MDV.close(); curV=null;}
+
+  if (b.value === "cancel") {
+    MDV.close();
+    curV = null;
+  }
 });
 
 // ===== Arranque / Órdenes =====
@@ -637,6 +683,7 @@ window.addEventListener("storage",e=>{
 });
 render();
 
+
 // =============================================================
 // ==============  NUEVO: Barcode Scanner (Quagga)  ===========
 // =============================================================
@@ -655,7 +702,6 @@ render();
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   function cleanupOverlay(){
-    // Limpia overlays previos
     const ov = viewport.querySelector('.drawingBuffer');
     if (ov) ov.remove();
   }
@@ -674,7 +720,6 @@ render();
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const vids = devices.filter(d => d.kind === 'videoinput');
-      // Buscar “back” o “rear”
       const back = vids.find(v => /back|rear|environment/i.test(v.label));
       return (back || vids[vids.length-1] || vids[0])?.deviceId || null;
     } catch {
@@ -683,7 +728,6 @@ render();
   }
 
   function ensureVisible(el){
-    // Asegura que el modal está pintado con tamaño real antes de init
     return new Promise(res => {
       requestAnimationFrame(()=> {
         const r = el.getBoundingClientRect();
@@ -700,16 +744,13 @@ render();
     await ensureVisible(viewport);
     cleanupOverlay();
 
-    // Forzar cámara trasera si es posible
     const devId = await getBackCameraId();
 
     const baseConstraints = {
       facingMode: devId ? undefined : "environment",
       deviceId: devId ? { exact: devId } : undefined,
-      // subir resolución ayuda al foco/decodificación
       width: { ideal: 1280 },
       height: { ideal: 720 },
-      // Algunos navegadores aceptan focusMode continuo
       advanced: [{ focusMode: "continuous" }]
     };
 
@@ -718,12 +759,7 @@ render();
         type : "LiveStream",
         target: viewport,
         constraints: baseConstraints,
-        area: {                // escanear el centro, mejora la lectura
-          top: "20%",          // margen superior
-          right: "20%",
-          left: "20%",
-          bottom: "20%"
-        }
+        area: { top: "20%", right: "20%", left: "20%", bottom: "20%" }
       },
       locator: { patchSize: "large", halfSample: true },
       numOfWorkers: isIOS ? 0 : (navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 2),
@@ -770,10 +806,8 @@ render();
     }
   }
 
-  // Dibuja cajas/contornos (útil para confirmar que está detectando algo)
   function onProcessed(result){
-    // Quagga añade un canvas con class drawingBuffer; ya lo deja visible por defecto.
-    // Aquí podríamos dibujar cajas si quisiéramos personalizar, pero Quagga ya lo hace.
+    // Quagga ya dibuja overlays; no añadimos nada aquí.
   }
 
   let lastCode = null, lastAt = 0;
@@ -785,7 +819,6 @@ render();
                   .reduce((acc, c) => acc + (1 - c.error), 0) / Math.max(1, (result.codeResult.decodedCodes || []).length);
 
     const now = Date.now();
-    // Debounce + umbral de "confianza" simple
     if ((code === lastCode && (now - lastAt) < 1200) || conf < 0.3) return;
     lastCode = code; lastAt = now;
 
@@ -800,13 +833,11 @@ render();
   btnCancel?.addEventListener('click', () => stopScanner());
   dlg?.addEventListener('close', () => stopScanner());
 
-  // Intercepta los botones existentes para abrir el escáner (sin romper tu lógica)
   function bindScan(btn, input){
     if (!btn || !input) return;
     btn.addEventListener('click', function(e){
       e.preventDefault();
       if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
-      // Si el navegador no soporta cámara, salimos a captura manual
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("Tu navegador no permite usar la cámara aquí. Captura manualmente.");
         input.focus();
@@ -828,7 +859,6 @@ render();
   bindScan(BTN_SCAN_RK,  IN_RK);
   bindScan(BTN_SCAN_VAL, IN_COD);
 
-  // Si cambias IDs más adelante:
   window.rebindBarcodeButtons = () => {
     bindScan(document.getElementById('btnScanPos'), document.getElementById('valPosicion'));
     bindScan(document.getElementById('btnScanRack'), document.getElementById('valRack'));
