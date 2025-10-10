@@ -1,4 +1,4 @@
-// ========== Controlistas.js ==========
+// ========== Controlistas.js (completo) ==========
 const K={
   PEND:"controlistas_pendientes",ARR:"controlistas_arranque",ORD:"controlistas_ordenes",
   CON:"controlistas_confirm",PROD:"controlistas_produccion",RET:"retirar_listas",
@@ -16,9 +16,10 @@ const pad=n=>String(n).padStart(3,"0"),
       isoLocal=t=>{if(!t)return now();let d=new Date(t);return isNaN(d)?now():d.toISOString()},
       hms=ms=>{if(ms<0)ms=0;let s=Math.floor(ms/1e3),h=String(Math.floor(s/3600)).padStart(2,"0"),m=String(Math.floor(s%3600/60)).padStart(2,"0"),se=String(s%60).padStart(2,"0");return`${h}:${m}:${se}`};
 
-// ===== broadcast racks (observaciones)
+// Broadcast para racks (observaciones visibles en Patineros)
 const RACKS_STATUS_CH = new BroadcastChannel('racks-status-updates');
 
+// Estado en memoria
 let P=J(K.PEND,[]),A=J(K.ARR,[]),O=J(K.ORD,[]),C=J(K.CON,[]),PR=J(K.PROD,[]),
     PS=J(K.PSTAT,{}),RS=J(K.RSTAT,{}),EU=J(K.USE,{posiciones:{},racks:{}});
 
@@ -29,7 +30,7 @@ mT?.addEventListener("click",()=>menu(!document.body.classList.contains("menu-op
 bd?.addEventListener("click",()=>menu(false));
 $$(".sidenav a").forEach(a=>a.addEventListener("click",()=>menu(false)));
 
-// ===== Secciones: solo una visible
+// Mostrar una sección a la vez (no landing)
 const SECTIONS = $$("main .panel");
 function showOnly(hash){
   const h = (hash || location.hash || "#validar").toLowerCase();
@@ -54,7 +55,7 @@ function markActive(){
   $$(".topnav a").forEach(a=>a.classList.toggle("active", a.getAttribute("href").toLowerCase()===h));
 }
 
-// ======= Tabs Validación: mostrar un pane a la vez =======
+// ======= Tabs Validación: panes por línea =======
 (function wireTabs(){
   const group = $("#valTabs");
   if(!group) return;
@@ -81,7 +82,9 @@ const GP=$("#gridPos"), GR=$("#gridRack"), PSR=$("#posSearch"), RSR=$("#rackSear
 
 const MDV=$("#modalValidar"), FMV=$("#formValidar"), VRES=$("#valResumen"), VDET=$("#valDetalle"), VCH=$("#valChips"),
       VC=$("#valCodigo"), VPOS=$("#valPosicion"), VRK=$("#valRack"),
-      BTN_SCAN_POS=$("#btnScanPos"), BTN_SCAN_RK=$("#btnScanRack"), BTN_SCAN_CODE=$("#btnScanVal");
+      BTN_SCAN_POS=$("#btnScanPos"), BTN_SCAN_RK=$("#btnScanRack"), BTN_SCAN_CODE=$("#btnScanVal"),
+      VAL_ERR=$("#valError"); // opcional en HTML
+let BTN_SAVE_VAL = FMV?.querySelector('button[value="save"]');
 
 const MDA=$("#modalArranque"), FMA=$("#formArranque");
 const MDI=$("#modalInfo"), IB=$("#infoBody");
@@ -111,40 +114,73 @@ function oVal(r){
   VCH.innerHTML=`<span class="tile-state ${EU.posiciones?.[r.posicion]?'state-busy':'state-ok'}">${EU.posiciones?.[r.posicion]?'Posición Ocupada':'Posición Disponible'}</span>
                  <span class="tile-state ${EU.racks?.[r.rack]?'state-busy':'state-ok'}">${EU.racks?.[r.rack]?'Rack en uso':'Rack listo'}</span>`;
   VPOS.value=""; VRK.value=""; VC.value="";
+  if (BTN_SAVE_VAL) BTN_SAVE_VAL.disabled = true;
+  if (VAL_ERR) VAL_ERR.textContent = "";
   MDV.showModal();
+  updateValidationState();
 }
-// (Estos listeners se sobre-escriben por el escáner real al final, pero se dejan como fallback)
-BTN_SCAN_POS?.addEventListener("click",()=>{let v=prompt("Escanear Posición (simulado). Ej: P004"); if(v) VPOS.value=v.trim()});
-BTN_SCAN_RK ?.addEventListener("click",()=>{let v=prompt("Escanear Rack (simulado). Ej: Rack004"); if(v) VRK.value=v.trim()});
-BTN_SCAN_CODE?.addEventListener("click",()=>{let v=prompt("Escanear Código de seco (simulado)"); if(v) VC.value=v.trim()});
+// Fallback si no hay cámara (se sobreescribe por Quagga más abajo)
+BTN_SCAN_POS?.addEventListener("click",()=>{let v=prompt("Escanear Posición (simulado). Ej: P004"); if(v) VPOS.value=v.trim(); updateValidationState();});
+BTN_SCAN_RK ?.addEventListener("click",()=>{let v=prompt("Escanear Rack (simulado). Ej: Rack004"); if(v) VRK.value=v.trim(); updateValidationState();});
+BTN_SCAN_CODE?.addEventListener("click",()=>{let v=prompt("Escanear Código de seco (simulado)"); if(v) VC.value=v.trim(); updateValidationState();});
 
-// === LISTENER DE VALIDACIÓN (ARREGLADO: COINCIDENCIA ESTRICTA) ===
+// ---- Validación en vivo (estricta) ----
+function normalizePos(x){ return (x||"").trim().toUpperCase(); }
+function normalizeRack(x){ return (x||"").trim().toUpperCase(); }
+function updateValidationState(){
+  if (!curV) return;
+  const pos = normalizePos(VPOS.value);
+  const rk  = normalizeRack(VRK.value);
+  const cod = (VC.value||"").trim();
+
+  const regPos = normalizePos(curV.posicion);
+  const regRk  = normalizeRack(curV.rack);
+  const regCod = curV.codigoSeco || "";
+
+  let errors = [];
+  if (!pos) errors.push("Captura la posición.");
+  if (!rk)  errors.push("Captura el rack.");
+  if (!cod) errors.push("Captura o escanea el código de seco.");
+
+  if (regPos && pos !== regPos) errors.push(`Posición esperada ${regPos}, ingresada ${pos||"—"}`);
+  if (regRk  && rk  !== regRk ) errors.push(`Rack esperado ${regRk}, ingresado ${rk||"—"}`);
+  if (regCod && cod !== regCod) errors.push(`Código esperado ${regCod}, ingresado ${cod||"—"}`);
+
+  if (VAL_ERR) VAL_ERR.textContent = errors.join("  •  ");
+  if (BTN_SAVE_VAL) BTN_SAVE_VAL.disabled = errors.length > 0;
+}
+[VPOS, VRK, VC].forEach(el => el?.addEventListener('input', updateValidationState));
+
+// --- Guardar validación (estricto, sin confirm) ---
 FMV?.addEventListener("click", e=>{
-  const b = e.target;
-  if (!(b instanceof HTMLButtonElement)) return;
+  const btn = e.target;
+  if (!(btn instanceof HTMLButtonElement)) return;
 
-  if (b.value === "save" && curV) {
-    const pos = VPOS.value.trim().toUpperCase();
-    const rk  = VRK.value.trim().toUpperCase();
-    const cod = VC.value.trim();
+  if (btn.value === "save" && curV) {
+    e.preventDefault();
 
-    if (!pos) return alert("Captura la Posición.");
-    if (!rk)  return alert("Captura el Rack.");
-    if (!cod) return alert("Captura o escanea el Código de seco.");
+    const pos = (VPOS.value||"").trim().toUpperCase();
+    const rk  = (VRK.value||"").trim().toUpperCase();
+    const cod = (VC.value||"").trim();
 
-    const regPos = (curV.posicion || "").toUpperCase();
-    const regRk  = (curV.rack || "").toUpperCase();
+    if (!pos || !rk || !cod){
+      alert("Completa Posición, Rack y Código de seco.");
+      return;
+    }
+
+    const regPos = (curV.posicion||"").toUpperCase();
+    const regRk  = (curV.rack||"").toUpperCase();
     const regCod = curV.codigoSeco || "";
 
-    if (regPos && pos !== regPos) {
+    if (regPos && pos !== regPos){
       alert(`La POSICIÓN no coincide con el registro.\nEsperado: ${regPos}\nIngresado: ${pos}`);
       return;
     }
-    if (regRk && rk !== regRk) {
+    if (regRk && rk !== regRk){
       alert(`El RACK no coincide con el registro.\nEsperado: ${regRk}\nIngresado: ${rk}`);
       return;
     }
-    if (regCod && cod !== regCod) {
+    if (regCod && cod !== regCod){
       alert(`El CÓDIGO DE SECO no coincide con el registro.\nEsperado: ${regCod}\nIngresado: ${cod}`);
       return;
     }
@@ -152,7 +188,7 @@ FMV?.addEventListener("click", e=>{
     const u = cur();
     const validado = {
       ...curV,
-      posicion: regPos || pos, // si venía vacío, toma el nuevo
+      posicion: regPos || pos,
       rack:     regRk  || rk,
       codigoSeco: regCod || cod,
       validadoEn: now(),
@@ -160,13 +196,11 @@ FMV?.addEventListener("click", e=>{
       validadoPorNombre: u?.name || "Controlista"
     };
 
-    // Mover a "Arranque"
     const arr = J(K.ARR, []);
     arr.push(validado);
     S(K.ARR, arr);
 
-    // Sacar de Pendientes
-    P = P.filter(x => x.id !== curV.id);
+    P = P.filter(x => (x.id||x._id) !== (curV.id||curV._id));
     S(K.PEND, P);
 
     MDV.close();
@@ -174,7 +208,8 @@ FMV?.addEventListener("click", e=>{
     render();
   }
 
-  if (b.value === "cancel") {
+  if (btn.value === "cancel"){
+    e.preventDefault();
     MDV.close();
     curV = null;
   }
@@ -232,7 +267,7 @@ function rOrd(){
   });
 }
 
-// ===== Confirmación: barra restante =====
+// ===== Confirmación: barra de progreso restante =====
 let timers=[];
 function clearTimers(){timers.forEach(id=>clearInterval(id)); timers=[]}
 function makeRestanteCell(fromISO, msDur){
@@ -281,7 +316,7 @@ function rCon(){
   });
 }
 
-// ===== Producción: selección múltiple + enviar a patineros =====
+// ===== Producción: multi-selección + envío a Patineros =====
 const selectedIds = new Set();
 function updateSelBadge(){ if(SEL_COUNT) SEL_COUNT.textContent = `Seleccionados: ${selectedIds.size}`; }
 function sendSelected(linea){
@@ -291,26 +326,16 @@ function sendSelected(linea){
   const left = [];
 
   (PR||[]).forEach(r=>{
-    const id = r.id || r._id || r.creadoEn; // fallback
+    const id = r.id || r._id || r.creadoEn;
     if(selectedIds.has(id)){
       const item = {
-        id: id,
-        refId: id,
-        posicion: r.posicion,
-        rack: r.rack,
-        linea: linea,
-        operador: r.operador,
-        empleado: r.registradoPorId,
-        codigoSeco: r.codigoSeco,
-        cantidad: r.cantidad,
-        creadoEn: r.creadoEn,
-        registradoPorNombre: r.registradoPorNombre
+        id, refId:id, posicion:r.posicion, rack:r.rack, linea:linea,
+        operador:r.operador, empleado:r.registradoPorId, codigoSeco:r.codigoSeco,
+        cantidad:r.cantidad, creadoEn:r.creadoEn, registradoPorNombre:r.registradoPorNombre
       };
       (ret[linea]=ret[linea]||[]).push(item);
       hist.push(item);
-    } else {
-      left.push(r);
-    }
+    } else left.push(r);
   });
 
   S(K.RET, ret);
@@ -349,7 +374,7 @@ function rProd(){
 
     rs.forEach(r=>{
       const id = r.id || r._id || r.creadoEn || crypto.randomUUID();
-      r.id = id; // normalizamos
+      r.id = id;
 
       let tr=document.createElement("tr");
       tr.innerHTML=`
@@ -390,7 +415,7 @@ function rProd(){
   total();
 }
 
-// ===== Pos/Rack catálogos (render simple) =====
+// ===== Pos/Rack catálogos (solo render compacto) =====
 function posSt(k){return PS?.[k]?.estado || (EU.posiciones?.[k]?"en_uso":"disponible")}
 function rackSt(k){return RS?.[k]?.estado || (EU.racks?.[k]?"en_uso":"disponible")}
 function rPos(q=""){
@@ -661,9 +686,7 @@ FRK?.addEventListener("click", (e)=>{
       obs: RK_OBS.value.trim()
     };
     RS[currentRackKey]=obj; S(K.RSTAT,RS);
-
     RACKS_STATUS_CH.postMessage({ type:'rack-update', key: currentRackKey, data: obj });
-
     MRK.close(); currentRackKey=null;
     rRack(RSR?.value);
   }
@@ -683,9 +706,8 @@ window.addEventListener("storage",e=>{
 });
 render();
 
-
 // =============================================================
-// ==============  NUEVO: Barcode Scanner (Quagga)  ===========
+// ==============  Barcode Scanner (Quagga)  ===================
 // =============================================================
 (function barcodeScannerAddon(){
   if (typeof Quagga === "undefined") return;
@@ -790,7 +812,6 @@ render();
       Quagga.start();
       running = true;
 
-      // Fallback: si no detecta nada en 15s, ofrece captura manual
       stopTimer = setTimeout(()=>{
         if (!running) return;
         if (confirm("No pude leer el código. ¿Quieres capturarlo manualmente?")) {
@@ -806,9 +827,7 @@ render();
     }
   }
 
-  function onProcessed(result){
-    // Quagga ya dibuja overlays; no añadimos nada aquí.
-  }
+  function onProcessed(_result){}
 
   let lastCode = null, lastAt = 0;
   function onDetected(result){
@@ -818,12 +837,13 @@ render();
                   .filter(c => c && typeof c.error !== 'undefined')
                   .reduce((acc, c) => acc + (1 - c.error), 0) / Math.max(1, (result.codeResult.decodedCodes || []).length);
 
-    const now = Date.now();
-    if ((code === lastCode && (now - lastAt) < 1200) || conf < 0.3) return;
-    lastCode = code; lastAt = now;
+    const ts = Date.now();
+    if ((code === lastCode && (ts - lastAt) < 1200) || conf < 0.3) return;
+    lastCode = code; lastAt = ts;
 
     if (targetInput) {
       targetInput.value = code;
+      targetInput.dispatchEvent(new Event('input', { bubbles:true })); // para validación en vivo
       targetInput.classList.add('pulse-highlight');
       setTimeout(()=> targetInput.classList.remove('pulse-highlight'), 900);
     }
@@ -865,3 +885,5 @@ render();
     bindScan(document.getElementById('btnScanVal'),  document.getElementById('valCodigo'));
   };
 })();
+
+
